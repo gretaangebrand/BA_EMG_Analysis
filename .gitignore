@@ -1,0 +1,71 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Logs / temp
+# =========================
+*.log
+tmp/
+temp/
+*.tmp
+
+# =========================
+# Output folders
+# =========================
+outputs/figures/
+outputs/tables
+#results/
+
+# =========================
+# Data folders
+# =========================
+data/raw_data/
+data/anonymized_csv_data/
+data/processed_data/
+
+# Große Tabellen / Exporte optional zusätzlich ignorieren
+*.xlsx
+*.ods
+
+# Workspace
+*.code-workspace
+
+# CSV nur ignorieren, wenn wirklich KEINE CSVs tracken
+# *.csv
+
+# =========================
+# Python build artifacts
+# =========================
+build/
+dist/
+*.egg-info/
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
