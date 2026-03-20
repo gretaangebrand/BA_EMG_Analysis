@@ -6,6 +6,7 @@ import sys
 #sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from scripts.utils.helpers import (
+    estimate_sampling_frequency,
     get_subject_id_from_filename,
     get_bilateral_trials,
     get_left_trials,
@@ -42,7 +43,6 @@ def remove_item_column(df: pd.DataFrame) -> pd.DataFrame:
     Entfernt die ITEM-Spalte.
     """
     return df.loc[:, df.columns.get_level_values(4) != "ITEM"].copy()
-
 
 # ============================================================
 # EMG-SPALTEN FILTERN
@@ -126,6 +126,13 @@ def preprocess_emg_file(file_path: Path) -> dict:
 
     df = load_emg_csv(file_path)
     print(f"Original Shape: {df.shape}")
+
+    # Samping Rate finden
+    fs = estimate_sampling_frequency(df)
+    if fs:
+        print(f"Geschätzte Sampling Frequency: {fs:.2f} Hz")
+    else:
+        print("Keine Zeitspalte gefunden")
 
     df = remove_item_column(df)
     print(f"Shape ohne ITEM-Spalte: {df.shape}")

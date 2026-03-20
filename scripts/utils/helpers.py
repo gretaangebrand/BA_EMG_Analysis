@@ -1,6 +1,53 @@
 from pathlib import Path
 import re
+import numpy as np
+import pandas as pd
 
+
+def estimate_sampling_frequency(df: pd.DataFrame) -> float | None:
+    """
+    Schätzt die Sampling Frequency anhand einer echten Zeitspalte.
+
+    Kriterien:
+    - numerisch
+    - monoton steigend
+    - medianes dt muss plausibel für 2000 Hz oder 2100 Hz sein
+    - ITEM-Spalte wird ausgeschlossen
+    """
+    for col in df.columns:
+        # Header als Text zusammensetzen
+        col_text = " | ".join(str(x) for x in col).lower()
+
+        # ITEM explizit ausschließen
+        if "item" in col_text:
+            continue
+
+        values = pd.to_numeric(df[col], errors="coerce")
+
+        if values.isna().all():
+            continue
+
+        diffs = values.diff().dropna()
+
+        if diffs.empty:
+            continue
+
+        # Nur streng monoton steigende Spalten
+        if not (diffs > 0).all():
+            continue
+
+        dt = diffs.median()
+
+        if dt <= 0:
+            continue
+
+        fs = 1.0 / dt
+
+        # Nur plausible Frequenzen akzeptieren
+        if 1900 <= fs <= 2200:
+            return fs
+
+    return None
 
 def get_subject_id_from_filename(file_path: str | Path) -> str:
     """
