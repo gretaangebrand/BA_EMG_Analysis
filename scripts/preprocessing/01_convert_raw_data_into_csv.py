@@ -2,20 +2,23 @@ from pathlib import Path
 import re
 import shutil
 
+# Skript durchsucht zwei Quellordner mit Rohdaten (_EMG_ORIGINAL und _EMG_RAW), erkennt automatisch, zu welcher Versuchsperson (Subject), 
+# Phase und Bewegungsart jede Textdatei gehört, benennt die Datei anonymisiert um und speichert sie als 
+# CSV‑Datei in einer neuen, strukturierten Ordnerhierarchie.
+
 # ============================================================
 # 1) PFADE
 # ============================================================
+# Hauptordner
+SOURCE_FOLDER = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\raw_data")
+# Unterordner
+emg_original_path = SOURCE_FOLDER / "_EMG_ORIGINAL"
+emg_raw_path = SOURCE_FOLDER / "_EMG_RAW"
+SOURCE_FOLDERS = [emg_original_path, emg_raw_path]
 
-BASE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\Daten_BA")
-RAW_DIR = BASE_DIR / "raw_data"
-OUTPUT_DIR = BASE_DIR / "anonymized_csv_data"
+# Outputordner
+OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
 
-# Wenn du nur einen der beiden Rohdatenordner verwenden willst,
-# kannst du hier gezielt auswählen.
-SOURCE_FOLDERS = [
-    RAW_DIR / "_EMG_ORIGINAL",
-    RAW_DIR / "_EMG_RAW",
-]
 
 # ============================================================
 # 2) MAPPING: participant_id -> subject_id

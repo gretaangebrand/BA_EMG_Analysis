@@ -43,9 +43,13 @@ outputs/tables
 # =========================
 # Data folders
 # =========================
+data/
 data/raw_data/
 data/anonymized_csv_data/
 data/processed_data/
+data/raw_data/*.xlsx
+data/raw_data/*.ods
+data/raw_data/*.ods#
 
 # Große Tabellen / Exporte optional zusätzlich ignorieren
 *.xlsx
@@ -69,3 +73,4 @@ dist/
 # =========================
 .env
 .env.*
+data/c3d_metadata_export.csv
