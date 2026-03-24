@@ -1,11 +1,17 @@
 from pathlib import Path
+from scripts.utils.helpers import (
+    detect_phase,
+    detect_subject,
+    detect_movement,
+)
+
 
 # Skript durchsucht zwei Quellordner mit Rohdaten (_EMG_ORIGINAL und _EMG_RAW), erkennt automatisch, zu welcher Versuchsperson (Subject), 
 # Phase und Bewegungsart jede Textdatei gehört, benennt die Datei anonymisiert um und speichert sie als 
 # CSV‑Datei in einer neuen, strukturierten Ordnerhierarchie.
 
 # ============================================================
-# 1) PFADE
+# PFADE
 # ============================================================
 # Hauptordner
 SOURCE_FOLDER = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\raw_data")
@@ -16,79 +22,6 @@ SOURCE_FOLDERS = [emg_original_path, emg_raw_path]
 
 # Outputordner
 OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
-
-
-# ============================================================
-# 2) MAPPING: participant_id -> subject_id
-# ============================================================
-
-SUBJECT_MAP = {
-    "P01_K": "S01",
-    "P02_A": "S02",
-    "P05_A": "S03",
-    "P06_D": "S04",
-    "P07_P": "S05",
-    "P09_B": "S06",
-    "P10_P": "S07",
-    "P01_Batzner": "S08",
-    "P02_Lorenz": "S09",
-    "P03_Feik": "S10",
-    "P04_Platzer": "S11",
-}
-
-# ============================================================
-# 3) PHASEN-MAPPING
-# ============================================================
-
-PHASE_MAP = {
-    "01_period": "01_PER",
-    "02_ovulation": "02_OVU",
-    "03_luteal": "03_LUT",
-}
-
-
-# ============================================================
-# 4) HILFSFUNKTIONEN
-# ============================================================
-
-def detect_phase(file_path: Path) -> str | None:
-    """
-    Erkennt die Phase über einen der übergeordneten Ordner.
-    """
-    for part in file_path.parts:
-        if part in PHASE_MAP:
-            return PHASE_MAP[part]
-    return None
-
-
-def detect_subject(filename: str) -> str | None:
-    """
-    Sucht participant_id im Dateinamen und übersetzt zu subject_id.
-    Es wird der längste passende Key zuerst geprüft, damit z.B.
-    P01_Batzner vor P01 erkannt wird.
-    """
-    for participant_id in sorted(SUBJECT_MAP.keys(), key=len, reverse=True):
-        if participant_id.lower() in filename.lower():
-            return SUBJECT_MAP[participant_id]
-    return None
-
-
-def detect_movement(file_path: Path) -> str | None:
-    """
-    Erkennt Bewegung über den Ordnernamen.
-    """
-    folder_map = {
-        "cmj": "CMJ",
-        "dj": "DJ",
-        "squatting": "SQ",
-    }
-
-    for part in file_path.parts:
-        part_lower = part.lower()
-        if part_lower in folder_map:
-            return folder_map[part_lower]
-
-    return None
 
 
 def ensure_output_folder(base_output: Path, phase: str, movement: str) -> Path:
@@ -113,7 +46,7 @@ def convert_txt_to_csv(source_file: Path, target_file: Path):
 
 
 # ============================================================
-# 5) HAUPTSKRIPT
+# HAUPTSKRIPT
 # ============================================================
 
 def main():

@@ -75,10 +75,10 @@ def get_trial_names(emg_df: pd.DataFrame) -> list[str]:
 # TRIALS EXTRAHIEREN
 # ============================================================
 
-def extract_trial_dataframe(emg_df: pd.DataFrame, trial_name: str, subject_id: str) -> pd.DataFrame:
+def extract_trial_dataframe(emg_df: pd.DataFrame, trial_name: str, subject_id: str, fs: float = None) -> pd.DataFrame:
     """
     Extrahiert für einen Trial ein sauberes DataFrame mit Muskelnamen
-    als Spalten.
+    als Spalten + optional Zeitspalte in Sekunden für die Trials.
     """
     trial_mask = emg_df.columns.get_level_values(0) == trial_name
     trial_df = emg_df.loc[:, trial_mask].copy()
@@ -93,17 +93,22 @@ def extract_trial_dataframe(emg_df: pd.DataFrame, trial_name: str, subject_id: s
     # S08 skalieren
     trial_df = apply_s08_scaling(trial_df, subject_id)
 
+    # Zeitspalte hinzufügen (wenn Samplingrate bekannt) ---
+    if fs is not None:
+        n = len(trial_df)
+        trial_df.insert(0, "time_s", np.arange(n) / fs)
+    
     return trial_df
 
 
-def build_trial_dictionary(emg_df: pd.DataFrame, trial_names: list[str], subject_id: str) -> dict[str, pd.DataFrame]:
+def build_trial_dictionary(emg_df: pd.DataFrame, trial_names: list[str], subject_id: str, fs: float) -> dict[str, pd.DataFrame]:
     """
     Baut ein Dictionary: short_trial_name -> trial_df
     """
     trial_data = {}
 
     for trial_name in trial_names:
-        trial_df = extract_trial_dataframe(emg_df, trial_name, subject_id)
+        trial_df = extract_trial_dataframe(emg_df, trial_name, subject_id, fs)
         short_name = make_short_trial_name(trial_name)
         trial_data[short_name] = trial_df
 
@@ -142,6 +147,12 @@ def preprocess_emg_file(file_path: Path) -> dict:
     df["time_s"] = time
     print(f"Shape mit Zeitspalte: {df.shape}")
 
+    # zur Überprüfung
+    n_samples = len(df)
+    duration_s = n_samples / fs
+    print(f"Anzahl Samples: {n_samples}")
+    print(f"Erwartete Gesamtdauer: {duration_s:.3f} Sekunden")
+
 
     emg_df = extract_emg_columns(df)
     print(f"Shape nur EMG: {emg_df.shape}")
@@ -157,9 +168,9 @@ def preprocess_emg_file(file_path: Path) -> dict:
     print(f"Linke Trials: {len(left_trials)}")
     print(f"Rechte Trials: {len(right_trials)}")
 
-    bilateral_data = build_trial_dictionary(emg_df, bilateral_trials, subject_id)
-    left_data = build_trial_dictionary(emg_df, left_trials, subject_id)
-    right_data = build_trial_dictionary(emg_df, right_trials, subject_id)
+    bilateral_data = build_trial_dictionary(emg_df, bilateral_trials, subject_id, fs)
+    left_data = build_trial_dictionary(emg_df, left_trials, subject_id, fs)
+    right_data = build_trial_dictionary(emg_df, right_trials, subject_id, fs)
 
     return {
         "file_path": file_path,
@@ -177,6 +188,14 @@ def preprocess_emg_file(file_path: Path) -> dict:
         "right_data": right_data,
     }
 
+def save_preprocessed_trials(trial_dict: dict[str, pd.DataFrame], output_dir: Path, subject_id: str, phase: str, movement: str):
+    out_dir = output_dir / subject_id / phase / movement
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, df in trial_dict.items():
+        out_path = out_dir / f"{subject_id}_{phase}_{movement}_{name}.csv"
+        df.to_csv(out_path, index=False)
+        print(f"[SAVED] {out_path.name}")
+
 
 # ============================================================
 # TESTAUSGABE
@@ -192,7 +211,8 @@ def print_trial_summary(trial_dict: dict[str, pd.DataFrame], title: str):
         return
 
     for trial_name, trial_df in trial_dict.items():
-        print(f"\nTrial: {trial_name}")
+        dur = trial_df["time_s"].iloc[-1]
+        print(f"\nTrial: {trial_name} | Dauer: {dur:.3f} s | Samples: {len(trial_df)}")
         print(f"Shape: {trial_df.shape}")
         print("Spalten:")
         for col in trial_df.columns:
@@ -205,3 +225,25 @@ if __name__ == "__main__":
     print_trial_summary(result["bilateral_data"], "BILATERALE TRIALS")
     print_trial_summary(result["left_data"], "LEFT TRIALS")
     print_trial_summary(result["right_data"], "RIGHT TRIALS")
+
+    # am Ende der main()
+    OUTPUT_SAVE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg")
+
+    save_preprocessed_trials(result["bilateral_data"], OUTPUT_SAVE_DIR, result["subject_id"], "01_PER", "CMJ")
+    save_preprocessed_trials(result["left_data"], OUTPUT_SAVE_DIR, result["subject_id"], "01_PER", "CMJ")
+    save_preprocessed_trials(result["right_data"], OUTPUT_SAVE_DIR, result["subject_id"], "01_PER", "CMJ")
+
+
+# Beispiel: ersten Trial plotten
+"""import matplotlib.pyplot as plt
+first_trial_name, first_trial_df = next(iter(result["bilateral_data"].items()))
+plt.figure(figsize=(10, 5))
+for col in first_trial_df.columns:
+    if col != "time_s":
+        plt.plot(first_trial_df["time_s"], first_trial_df[col], label=col)
+plt.title(f"EMG Trial: {first_trial_name}")
+plt.xlabel("Zeit [s]")
+plt.ylabel("Amplitude (Rohsignal)")
+plt.legend(loc="upper right", ncol=2, fontsize=8)
+plt.tight_layout()
+plt.show()"""

@@ -5,6 +5,28 @@ import re
 
 # kleine, universelle Tools (z. B. Sampling‑Rate‑Lookup, Scaling, Parsing-Funktionen)
 #---------------------------------------------------------------------------
+# Konstante Zuordnungen
+
+SUBJECT_MAP = {
+    "P01_K": "S01",
+    "P02_A": "S02",
+    "P05_A": "S03",
+    "P06_D": "S04",
+    "P07_P": "S05",
+    "P09_B": "S06",
+    "P10_P": "S07",
+    "P01_Batzner": "S08",
+    "P02_Lorenz": "S09",
+    "P03_Feik": "S10",
+    "P04_Platzer": "S11",
+}
+
+PHASE_MAP = {
+    "01_period": "01_PER",
+    "02_ovulation": "02_OVU",
+    "03_luteal": "03_LUT",
+}
+
 
 # Sampling-Frequenz per Subject-ID mappen
 def get_sampling_rate_for_subject(subject_id: str) -> int:
@@ -24,6 +46,49 @@ def get_subject_id_from_filename(file_path: str | Path) -> str:
     """
     file_name = Path(file_path).stem
     return file_name.split("_")[0]
+
+# ============================================================
+# Erkennung von Phase, Subject und Bewegung
+# ============================================================
+
+def detect_phase(file_path: Path) -> str | None:
+    """
+    Erkennt die Phase über einen der übergeordneten Ordner.
+    Erwartet, dass Ordnernamen wie '01_period', '02_ovulation', '03_luteal' enthalten sind.
+    """
+
+    for part in file_path.parts:
+        if part in PHASE_MAP:
+            return PHASE_MAP[part]
+    return None
+
+
+def detect_subject(filename: str) -> str | None:
+    """
+    Sucht participant_id im Dateinamen und übersetzt zu subject_id.
+    Prüft längsten Key zuerst (z. B. P01_Batzner vor P01).
+    """
+    for pid in sorted(SUBJECT_MAP.keys(), key=len, reverse=True):
+        if pid.lower() in filename.lower():
+            return SUBJECT_MAP[pid]
+    return None
+
+
+def detect_movement(file_path: Path) -> str | None:
+    """
+    Erkennt Bewegung anhand des Ordnernamens.
+    """
+    folder_map = {
+        "cmj": "CMJ",
+        "dj": "DJ",
+        "squatting": "SQ",
+    }
+    for part in file_path.parts:
+        low = part.lower()
+        if low in folder_map:
+            return folder_map[low]
+    return None
+
 
 # Bilaterale Übungen, nur Übung selbst und Trail Nummer im Namen
 def get_bilateral_trials(trial_names):
