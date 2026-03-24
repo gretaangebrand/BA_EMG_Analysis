@@ -22,7 +22,7 @@ from scripts.utils.helpers import (
 SOURCE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
 OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
 
-CSV_SEPARATOR = "\t"
+CSV_SEPARATOR = ","
 HEADER_ROWS = [0, 1, 2, 3, 4]
 
 # Beispiel für unterschiedliche Header-Behandlung
@@ -78,10 +78,10 @@ def build_trial_dictionary(emg_df, trial_names, subject_id, fs):
 def preprocess_emg_file(file_path: Path) -> dict:
     subject_id = get_subject_id_from_filename(file_path)
     phase = detect_phase(file_path)
-    movement = detect_movement(file_path)
+    movement_type = detect_movement(file_path)
     fs = get_sampling_rate_for_subject(subject_id)
 
-    print(f"\n=== {file_path.name} | {subject_id} | {phase} | {movement} ===")
+    print(f"\n=== {file_path.name} | {subject_id} | {phase} | {movement_type} ===")
 
     df = load_emg_csv(file_path)
     df = remove_item_column(df)
@@ -98,7 +98,7 @@ def preprocess_emg_file(file_path: Path) -> dict:
     return {
         "subject_id": subject_id,
         "phase": phase,
-        "movement": movement,
+        "movement_type": movement_type,
         "bilateral": bilateral,
         "left": left,
         "right": right
@@ -107,14 +107,14 @@ def preprocess_emg_file(file_path: Path) -> dict:
 def save_preprocessed_trials(preprocessed: dict, out_dir: Path):
     subject_id = preprocessed["subject_id"]
     phase = preprocessed["phase"]
-    movement = preprocessed["movement"]
+    movement_type = preprocessed["movement_type"]
     for group, trials in {
         "BILATERAL": preprocessed["bilateral"],
         "LEFT": preprocessed["left"],
         "RIGHT": preprocessed["right"]
     }.items():
         for name, df in trials.items():
-            target_dir = out_dir / subject_id / phase / movement
+            target_dir = out_dir / subject_id / phase / movement_type
             target_dir.mkdir(parents=True, exist_ok=True)
             out_path = target_dir / f"{name}.csv"
             df.to_csv(out_path, index=False)

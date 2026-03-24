@@ -50,6 +50,13 @@ folder_map = {
         "squatting": "SQ",
         # zusätzlich für dann schon annonymisierte Dateien
         "sq": "SQ",
+        'Drop Jump Bilateral': 'Drop Jump Bilateral',
+        'counter-movement jump bilateral': 'Counter-Movement Jump',
+        'counter-movement jump left': 'Counter-Movement Jump Left',
+        'counter-movement jump right': 'Counter-Movement Jump Right',
+        'squatting bilateral': 'Squatting',
+        'squatting left': 'Squatting Left',
+        'squatting right': 'Squatting Right',
     }
 
 # Sampling-Frequenz per Subject-ID mappen
@@ -80,7 +87,6 @@ def detect_phase(file_path: Path) -> str | None:
     Erkennt die Phase über einen der übergeordneten Ordner.
     Erwartet, dass Ordnernamen wie '01_period', '02_ovulation', '03_luteal' enthalten sind.
     """
-
     for part in file_path.parts:
         if part in PHASE_MAP:
             return PHASE_MAP[part]
@@ -100,13 +106,36 @@ def detect_subject(filename: str) -> str | None:
 
 def detect_movement(file_path: Path) -> str | None:
     """
-    Erkennt Bewegung anhand des Ordnernamens.
+    Erkennt Bewegung anhand des Ordnernamens und des Dateinamens.
+    Unterstützt jetzt auch Kürzel wie CMJ, DJ, SQ.
     """
-    for part in file_path.parts:
-        low = part.lower()
-        if low in folder_map:
-            return folder_map[low]
-    return None
+    movement_type = None
+    # Wir prüfen sowohl den gesamten Pfad als auch explizit den Dateinamen
+    full_path_string = str(file_path).lower()
+
+    # Logik für Kürzel und volle Namen
+    if 'drop jump bilateral' in full_path_string or '_dj' in full_path_string:
+        movement_type = 'Drop Jump Bilateral'
+    elif 'counter-movement jump' in full_path_string or '_cmj' in full_path_string:
+        if 'left' in full_path_string:
+            movement_type = 'Counter-Movement Jump Left'
+        elif 'right' in full_path_string:
+            movement_type = 'Counter-Movement Jump Right'
+        else:
+            movement_type = 'Counter-Movement Jump Bilateral'
+    elif 'squatting' in full_path_string or 'squat' in full_path_string or '_sq' in full_path_string:
+        if 'left' in full_path_string:
+            movement_type = 'Squatting Left'
+        elif 'right' in full_path_string:
+            movement_type = 'Squatting Right'
+        else:
+            movement_type = 'Squatting Bilateral'
+
+    if not movement_type:
+        print(f"[WARNUNG] Übung nicht gefunden in: {file_path.name}")
+        return "UNKNOWN_MOVEMENT" # Fallback, damit das Skript nicht abstürzt
+
+    return movement_type
 
 
 # Bilaterale Übungen, nur Übung selbst und Trail Nummer im Namen
