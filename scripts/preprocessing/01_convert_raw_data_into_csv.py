@@ -1,6 +1,4 @@
 from pathlib import Path
-import re
-import shutil
 
 # Skript durchsucht zwei Quellordner mit Rohdaten (_EMG_ORIGINAL und _EMG_RAW), erkennt automatisch, zu welcher Versuchsperson (Subject), 
 # Phase und Bewegungsart jede Textdatei gehört, benennt die Datei anonymisiert um und speichert sie als 

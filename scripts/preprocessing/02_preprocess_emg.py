@@ -1,12 +1,13 @@
 from pathlib import Path
 import pandas as pd
-import sys
+import numpy as np
 
-# Projekt-Root zum Python-Pfad hinzufügen
-#sys.path.append(str(Path(__file__).resolve().parents[2]))
+# Ziel: jede Datei und jede Person in einem einheitlichen Format haben, Samplingfrequenzen korrekt an die Trials binden,
+# und alles so aufbereiten, dass du später systematisch darauf zugreifen kannst (pro Person, Phase, Bewegung, Trial).
+# korrekte Struktur, Metadaten und interne Konsistenz.
 
 from scripts.utils.helpers import (
-    estimate_sampling_frequency,
+    get_sampling_rate_for_subject,
     get_subject_id_from_filename,
     get_bilateral_trials,
     get_left_trials,
@@ -124,18 +125,23 @@ def preprocess_emg_file(file_path: Path) -> dict:
     print(f"Subject ID: {subject_id}")
     print("=" * 80)
 
+    # Datei laden
     df = load_emg_csv(file_path)
     print(f"Original Shape: {df.shape}")
 
-    # Samping Rate finden
-    fs = estimate_sampling_frequency(df)
-    if fs:
-        print(f"Geschätzte Sampling Frequency: {fs:.2f} Hz")
-    else:
-        print("Keine Zeitspalte gefunden")
-
+    # Item spalte entfernen
     df = remove_item_column(df)
     print(f"Shape ohne ITEM-Spalte: {df.shape}")
+
+    # Sampling Rate abrufen
+    fs = get_sampling_rate_for_subject(subject_id)
+    print(f"Sampling Rate gesetzt: {fs} Hz")
+
+    # Zeitspalte hinzufügen
+    time = np.arange(len(df)) / fs
+    df["time_s"] = time
+    print(f"Shape mit Zeitspalte: {df.shape}")
+
 
     emg_df = extract_emg_columns(df)
     print(f"Shape nur EMG: {emg_df.shape}")
@@ -158,6 +164,8 @@ def preprocess_emg_file(file_path: Path) -> dict:
     return {
         "file_path": file_path,
         "subject_id": subject_id,
+        "sampling_rate": fs,
+        "time_vector": time,
         "raw_df": df,
         "emg_df": emg_df,
         "all_trial_names": all_trial_names,

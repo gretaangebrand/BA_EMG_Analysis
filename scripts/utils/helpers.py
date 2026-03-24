@@ -1,53 +1,21 @@
 from pathlib import Path
 import re
-import numpy as np
-import pandas as pd
+# import numpy as np
+# import pandas as pd
 
+# kleine, universelle Tools (z. B. Sampling‑Rate‑Lookup, Scaling, Parsing-Funktionen)
+#---------------------------------------------------------------------------
 
-def estimate_sampling_frequency(df: pd.DataFrame) -> float | None:
+# Sampling-Frequenz per Subject-ID mappen
+def get_sampling_rate_for_subject(subject_id: str) -> int:
     """
-    Schätzt die Sampling Frequency anhand einer echten Zeitspalte.
-
-    Kriterien:
-    - numerisch
-    - monoton steigend
-    - medianes dt muss plausibel für 2000 Hz oder 2100 Hz sein
-    - ITEM-Spalte wird ausgeschlossen
+    Gibt die Sampling-Rate in Hz für jede Versuchsperson zurück.
+    Standard: 2000 Hz
+    Ausnahmen: P01_K, P02_A, P05_A, P06_D -> 2100 Hz
     """
-    for col in df.columns:
-        # Header als Text zusammensetzen
-        col_text = " | ".join(str(x) for x in col).lower()
+    high_fs_subjects = {"S01", "S02", "S03", "S04"}  # deine anonymisierten IDs
+    return 2100 if subject_id in high_fs_subjects else 2000
 
-        # ITEM explizit ausschließen
-        if "item" in col_text:
-            continue
-
-        values = pd.to_numeric(df[col], errors="coerce")
-
-        if values.isna().all():
-            continue
-
-        diffs = values.diff().dropna()
-
-        if diffs.empty:
-            continue
-
-        # Nur streng monoton steigende Spalten
-        if not (diffs > 0).all():
-            continue
-
-        dt = diffs.median()
-
-        if dt <= 0:
-            continue
-
-        fs = 1.0 / dt
-
-        # Nur plausible Frequenzen akzeptieren
-        if 1900 <= fs <= 2200:
-            return fs
-
-    return None
 
 def get_subject_id_from_filename(file_path: str | Path) -> str:
     """
