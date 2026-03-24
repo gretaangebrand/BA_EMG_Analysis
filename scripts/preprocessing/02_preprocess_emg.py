@@ -25,6 +25,19 @@ OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG
 CSV_SEPARATOR = "\t"
 HEADER_ROWS = [0, 1, 2, 3, 4]
 
+# Beispiel für unterschiedliche Header-Behandlung
+def load_emg_csv(file_path: Path, is_special_case=False) -> pd.DataFrame:
+    """
+    Liest eine CSV mit 5 Header-Zeilen ein, aber behandelt spezielle Fälle (z.B. S08 bis S11).
+    """
+    if is_special_case:
+        # Hier könnte für S08 bis S11 die Header-Zeilen-Anpassung vorgenommen werden
+        df = pd.read_csv(file_path, sep=CSV_SEPARATOR, header=4)  # Beispiel für 4 Header-Zeilen
+    else:
+        df = pd.read_csv(file_path, sep=CSV_SEPARATOR, header=HEADER_ROWS)
+    
+    return df
+
 
 # ============================================================
 # FUNKTIONEN

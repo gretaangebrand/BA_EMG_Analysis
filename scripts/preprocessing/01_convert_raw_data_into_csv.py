@@ -42,6 +42,9 @@ def convert_txt_to_csv(source_file: Path, target_file: Path):
     Falls deine Dateien ein spezielles Format haben, kann man das später anpassen.
     """
     text = source_file.read_text(encoding="utf-8", errors="ignore")
+    text = text.replace("\t", ",")  # Tabulatoren durch Kommas ersetzen
+
+    # speichern als .csv
     target_file.write_text(text, encoding="utf-8")
 
 
