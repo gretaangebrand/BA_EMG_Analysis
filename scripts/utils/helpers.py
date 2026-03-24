@@ -19,14 +19,38 @@ SUBJECT_MAP = {
     "P02_Lorenz": "S09",
     "P03_Feik": "S10",
     "P04_Platzer": "S11",
+    # zusätzlich für dann schon annonymisierte Dateien
+    "S01": "S01",
+    "S02": "S02",
+    "S03": "S03",
+    "S04": "S04",
+    "S05": "S05",
+    "S06": "S06",
+    "S07": "S07",
+    "S08": "S08",
+    "S09": "S09",
+    "S10": "S10",
+    "S11": "S11",
 }
 
 PHASE_MAP = {
     "01_period": "01_PER",
     "02_ovulation": "02_OVU",
     "03_luteal": "03_LUT",
+    # zusätzlich für dann schon annonymisierte Dateien
+    "01_PER": "01_PER",
+    "02_OVU": "02_OVU",
+    "03_LUT": "03_LUT",
 }
 
+folder_map = {
+        "cmj": "CMJ",
+        "dj": "DJ",
+        "squat": "SQ",
+        "squatting": "SQ",
+        # zusätzlich für dann schon annonymisierte Dateien
+        "sq": "SQ",
+    }
 
 # Sampling-Frequenz per Subject-ID mappen
 def get_sampling_rate_for_subject(subject_id: str) -> int:
@@ -78,11 +102,6 @@ def detect_movement(file_path: Path) -> str | None:
     """
     Erkennt Bewegung anhand des Ordnernamens.
     """
-    folder_map = {
-        "cmj": "CMJ",
-        "dj": "DJ",
-        "squatting": "SQ",
-    }
     for part in file_path.parts:
         low = part.lower()
         if low in folder_map:
