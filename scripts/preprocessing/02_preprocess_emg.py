@@ -1,182 +1,275 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import shutil
-
 
 from scripts.utils.helpers import (
     get_sampling_rate_for_subject,
     get_subject_id_from_filename,
     detect_phase,
-    detect_movement,
-    get_bilateral_trials,
-    get_left_trials,
-    get_right_trials,
     apply_s08_scaling,
     make_short_trial_name,
 )
 
-# ============================================================
-# EINSTELLUNGEN
-# ============================================================
+# =============================================================================
+# 02_preprocess_emg.py
+#
+# Liest anonymisierte CSV-Dateien aus dem Preprocessing-Schritt 01 ein,
+# erkennt automatisch alle enthaltenen Trials und Muskeln direkt aus dem
+# Header (Zeile 0 enthaelt den c3d-Dateipfad je Spalte), und speichert
+# pro Trial eine saubere CSV mit time_s + EMG-Kanaelen.
+#
+# Ordnerstruktur des Outputs:
+#   <OUTPUT_DIR>/<subject_id>/<phase>/<bewegung>/<seite>/<trial_kuerzel>.csv
+#
+# Beispiel:
+#   preprocessed/S01/01_PER/CMJ/BILATERAL/CMJ_01.csv
+#   preprocessed/S01/01_PER/CMJ/LEFT/CMJ_L_01.csv
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Pfade
+# -----------------------------------------------------------------------------
 SOURCE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
 OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
 
-CSV_SEPARATOR = ","
-HEADER_ROWS = [0, 1, 2, 3, 4]
-
-# ============================================================
-# FUNKTIONEN
-# ============================================================
-
-# unterschiedliche Header-Behandlung
-def load_emg_csv(file_path: Path, subject_id: str) -> pd.DataFrame:
-    """
-    Liest eine CSV ein und unterdrückt DtypeWarnings.
-    """
-    # S08 bis S11 haben 4 Header-Zeilen, andere haben 5
-    special_subjects = {"S08"} #"S09", "S10", "S11"
-    h_rows = [0, 1, 2, 3] if subject_id in special_subjects else [0, 1, 2, 3, 4]
-    
-    return pd.read_csv(
-        file_path, 
-        sep=CSV_SEPARATOR, 
-        header=h_rows, 
-        low_memory=False  # <--- HIER wird die Fehlermeldung unterdrückt
-    )
+# Anzahl Header-Zeilen je Subject-Gruppe
+_HEADER_ROWS_DEFAULT  = 5   # S01-S07
+_HEADER_ROWS_SPECIAL  = 4   # S08 (und ggf. S09-S11, hier erweiterbar)
+_SPECIAL_SUBJECTS     = {"S08"}
 
 
-def remove_item_column(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Entfernt ITEM-Spalten sicher, egal wie viele Header-Level existieren.
-    """
-    mask = np.ones(len(df.columns), dtype=bool)
-    for level in range(df.columns.nlevels):
-        # Nutze .str.upper(), um die Operation auf alle Elemente anzuwenden
-        level_values = df.columns.get_level_values(level).astype(str).str.upper()
-        mask &= (level_values != "ITEM")
-    return df.loc[:, mask].copy()
+# -----------------------------------------------------------------------------
+# Schritt 1: Header analysieren
+# -----------------------------------------------------------------------------
 
-def extract_emg_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Sucht ANALOG flexibel in allen Header-Ebenen. 
-    Bei S01-S07 wird zusätzlich auf EMG_RAW geprüft, bei S08-S11 nur auf ANALOG.
-    """
-    column_masks = []
-    for level in range(df.columns.nlevels):
-        vals = df.columns.get_level_values(level).astype(str).str.upper()
-        column_masks.append(vals)
+def _n_header_rows(subject_id: str) -> int:
+    return _HEADER_ROWS_SPECIAL if subject_id in _SPECIAL_SUBJECTS else _HEADER_ROWS_DEFAULT
 
-    # Grundbedingung: ANALOG muss irgendwo stehen
-    is_analog = np.any([v == "ANALOG" for v in column_masks], axis=0)
-    
-    # Check ob EMG_RAW irgendwo vorkommt (typisch für S01-S07)
-    has_emg_raw_anywhere = np.any([v == "EMG_RAW" for v in column_masks])
-    
-    if has_emg_raw_anywhere:
-        # Wenn EMG_RAW existiert (S01-S07), muss es auch in der Spalte sein
-        is_emg = np.any([v == "EMG_RAW" for v in column_masks], axis=0)
-        return df.loc[:, is_analog & is_emg].copy()
+
+def read_header(file_path: Path, n_rows: int) -> pd.DataFrame:
+    """Liest die ersten n_rows Zeilen als rohen String-DataFrame."""
+    return pd.read_csv(file_path, header=None, nrows=n_rows, low_memory=False).fillna("")
+
+
+def extract_trial_column_map(header: pd.DataFrame) -> dict[str, list[int]]:
+    """
+    Liest Zeile 0 (Trial-Pfade) und ermittelt pro einzigartigem Trial,
+    welche Spalten-Indizes die EMG-Daten enthalten.
+
+    Kriterien fuer EMG-Spalten:
+      - Zeile 0 enthaelt den Trial-Pfad (*.c3d)
+      - Zeile mit 'Typ' enthaelt 'ANALOG'
+      - Zeile mit 'Subtyp' enthaelt 'EMG_RAW' (falls im File vorhanden)
+        oder wird weggelassen (S08+), dann gilt: alle ANALOG-Spalten
+
+    Gibt zurueck:
+      { trial_stem_string: [spalten_index, ...] }
+    z.B. { "Counter-Movement Jump 1": [66, 67, 68, ...] }
+    """
+    n_rows = len(header)
+
+    row0 = header.iloc[0].astype(str)          # Trial-Pfade
+    row_type = header.iloc[2].astype(str).str.upper()   # METRIC / ANALOG / ...
+
+    # Subtyp-Zeile nur auswerten wenn sie existiert (5-Zeilen-Format)
+    has_subtype_row = n_rows >= 4
+    row_sub = header.iloc[3].astype(str).str.upper() if has_subtype_row else None
+
+    # Pruefe ob EMG_RAW als Subtyp vorkommt (S01-S07)
+    has_emg_raw = has_subtype_row and (row_sub == "EMG_RAW").any()
+
+    # Trials in Reihenfolge ihres ersten Auftretens sammeln
+    trial_order: list[str] = []
+    seen_paths: set[str] = set()
+    for val in row0:
+        if ".c3d" in val.lower() and val not in seen_paths:
+            seen_paths.add(val)
+            trial_order.append(val)
+
+    trial_column_map: dict[str, list[int]] = {}
+
+    for trial_path in trial_order:
+        trial_stem = Path(trial_path).stem  # z.B. "Counter-Movement Jump 1"
+
+        if has_emg_raw:
+            # S01-S07: nur Spalten die ANALOG + EMG_RAW sind
+            col_indices = [
+                i for i, v in enumerate(row0)
+                if v == trial_path
+                and row_type.iloc[i] == "ANALOG"
+                and row_sub.iloc[i] == "EMG_RAW"
+            ]
+        else:
+            # S08+: alle ANALOG-Spalten dieses Trials
+            col_indices = [
+                i for i, v in enumerate(row0)
+                if v == trial_path and row_type.iloc[i] == "ANALOG"
+            ]
+
+        if not col_indices:
+            print(f"  [WARNUNG] Keine EMG-Spalten fuer Trial '{trial_stem}' gefunden.")
+            continue
+
+        trial_column_map[trial_stem] = col_indices
+
+    return trial_column_map
+
+
+def extract_muscle_names(header: pd.DataFrame, col_indices: list[int]) -> list[str]:
+    """Liest die Muskelnamen (Zeile 1) fuer die gegebenen Spalten-Indizes."""
+    return header.iloc[1].astype(str).iloc[col_indices].tolist()
+
+
+# -----------------------------------------------------------------------------
+# Schritt 2: Daten laden und pro Trial extrahieren
+# -----------------------------------------------------------------------------
+
+def load_data(file_path: Path, n_header_rows: int) -> pd.DataFrame:
+    """
+    Laedt den Datenteil der CSV (alles nach den Header-Zeilen).
+    Spalte 0 enthaelt den ITEM-Zeitschritt (wird nicht benoetigt).
+    """
+    return pd.read_csv(file_path, header=None, skiprows=n_header_rows, low_memory=False)
+
+
+def extract_trial_df(
+    data: pd.DataFrame,
+    col_indices: list[int],
+    muscle_names: list[str],
+    subject_id: str,
+    fs: float,
+) -> pd.DataFrame:
+    """
+    Extrahiert die EMG-Spalten eines Trials aus dem Daten-DataFrame,
+    benennt die Spalten nach den Muskeln und fuegt eine Zeitspalte hinzu.
+    Wendet S08-Skalierung an falls noetig.
+    """
+    df = data.iloc[:, col_indices].copy()
+    df.columns = muscle_names
+    df = df.apply(pd.to_numeric, errors="coerce")
+    df = apply_s08_scaling(df, subject_id)
+    df.insert(0, "time_s", np.arange(len(df)) / fs)
+    return df
+
+
+# -----------------------------------------------------------------------------
+# Schritt 3: Ordnerstruktur und Dateinamen ableiten
+# -----------------------------------------------------------------------------
+
+def trial_stem_to_folder_and_side(trial_stem: str) -> tuple[str, str]:
+    """
+    Leitet aus dem langen Trial-Namen (Stem des c3d-Dateipfads) den
+    Bewegungsordner (CMJ / DJ / SQ / OTHER) und die Seite (BILATERAL /
+    LEFT / RIGHT) ab.
+
+    Eingabe:  'Counter-Movement Jump Left 2'
+    Ausgabe:  ('CMJ', 'LEFT')
+    """
+    s = trial_stem.lower()
+
+    # Seite
+    if "left" in s:
+        side = "LEFT"
+    elif "right" in s:
+        side = "RIGHT"
     else:
-        # Wenn kein EMG_RAW im gesamten File (S08-S11), nehmen wir alle ANALOG Spalten
-        # Das sind dann direkt die Muskeln
-        return df.loc[:, is_analog].copy()
+        side = "BILATERAL"
 
-def get_trial_names(emg_df: pd.DataFrame) -> list[str]:
-    return pd.Index(emg_df.columns.get_level_values(0)).dropna().unique().tolist()
+    # Bewegung
+    if "counter-movement jump" in s or "counter movement jump" in s:
+        movement = "CMJ"
+    elif "drop jump" in s:
+        movement = "DJ"
+    elif "squat" in s:
+        movement = "SQ"
+    else:
+        movement = "OTHER"
 
-def extract_trial_dataframe(emg_df: pd.DataFrame, trial_name: str, subject_id: str, fs: float) -> pd.DataFrame:
-    # 1. Wähle die Spalten für das spezifische Trial aus
-    trial_mask = emg_df.columns.get_level_values(0) == trial_name
-    trial_df = emg_df.loc[:, trial_mask].copy()
-    
-    # 2. DER VORTEIL: Wir setzen die Namen fix auf Level 1 (die Muskelnamen)
-    # Egal ob Subject S01 oder S08 - Level 1 enthält laut deiner Info immer die Muskeln.
-    trial_df.columns = trial_df.columns.get_level_values(1)
-    
-    # 3. Bereinigung
-    trial_df = trial_df.apply(pd.to_numeric, errors="coerce")
-    trial_df = apply_s08_scaling(trial_df, subject_id) # Skalierung nur für S08
-    
-    # 4. Zeitspalte einfügen
-    trial_df.insert(0, "time_s", np.arange(len(trial_df)) / fs)
-    return trial_df
+    return movement, side
 
-def build_trial_dictionary(emg_df, trial_names, subject_id, fs):
-    data = {}
-    for name in trial_names:
-        df = extract_trial_dataframe(emg_df, name, subject_id, fs)
-        short_name = make_short_trial_name(name)
-        data[short_name] = df
-    return data
 
-def preprocess_emg_file(file_path: Path) -> dict:
+# -----------------------------------------------------------------------------
+# Hauptfunktion pro Datei
+# -----------------------------------------------------------------------------
+
+def preprocess_emg_file(file_path: Path) -> int:
+    """
+    Verarbeitet eine einzelne CSV-Datei vollstaendig:
+      1. Metadaten aus Dateinamen lesen
+      2. Header analysieren -> Trial-Spalten-Map aufbauen
+      3. Daten laden
+      4. Pro Trial EMG-Daten extrahieren und als CSV speichern
+
+    Gibt die Anzahl der gespeicherten Trial-Dateien zurueck.
+    """
     subject_id = get_subject_id_from_filename(file_path)
-    phase = detect_phase(file_path)
-    movement_type = detect_movement(file_path)
-    fs = get_sampling_rate_for_subject(subject_id)
+    phase      = detect_phase(file_path)
+    fs         = get_sampling_rate_for_subject(subject_id)
+    n_hdr      = _n_header_rows(subject_id)
 
-    # Kurzes Ordner-Kürzel für die Struktur (CMJ, DJ, SQ)
-    folder_map = {"Counter-Movement": "CMJ", "Drop": "DJ", "Squat": "SQ"}
-    folder_name = "OTHER"
-    for key, val in folder_map.items():
-        if key in str(movement_type):
-            folder_name = val
-            break
+    if phase is None:
+        print(f"[FEHLER] Phase nicht erkannt: {file_path} – Datei wird uebersprungen.")
+        return 0
 
-    print(f"\n=== {file_path.name} | {subject_id} | {phase} | {movement_type} ===")
+    print(f"\n=== {file_path.name} | {subject_id} | {phase} | fs={fs} Hz ===")
 
-    df = load_emg_csv(file_path, subject_id)
-    df = remove_item_column(df)
+    # Header und Daten einlesen
+    header = read_header(file_path, n_hdr)
+    trial_col_map = extract_trial_column_map(header)
 
-    time = np.arange(len(df)) / fs
-    df["time_s"] = time
+    if not trial_col_map:
+        print(f"  [FEHLER] Keine Trials gefunden – Datei wird uebersprungen.")
+        return 0
 
-    emg_df = extract_emg_columns(df)
-    trials = get_trial_names(emg_df)
+    data = load_data(file_path, n_hdr)
+    saved = 0
 
-    bilateral = build_trial_dictionary(emg_df, get_bilateral_trials(trials), subject_id, fs)
-    left = build_trial_dictionary(emg_df, get_left_trials(trials), subject_id, fs)
-    right = build_trial_dictionary(emg_df, get_right_trials(trials), subject_id, fs)
+    for trial_stem, col_indices in trial_col_map.items():
+        muscle_names = extract_muscle_names(header, col_indices)
+        short_name   = make_short_trial_name(trial_stem)   # z.B. "CMJ_L_02"
+        movement, side = trial_stem_to_folder_and_side(trial_stem)
 
-    return {
-        "subject_id": subject_id, "phase": phase, "movement_type": movement_type,
-        "folder_name": folder_name, "bilateral": bilateral, "left": left, "right": right
-    }
+        trial_df = extract_trial_df(data, col_indices, muscle_names, subject_id, fs)
 
-def save_preprocessed_trials(preprocessed: dict, out_dir: Path):
-    """Speichert die Trials in die gewünschte Ordnerstruktur."""
-    subject_id = preprocessed["subject_id"]
-    phase = preprocessed["phase"]
-    folder_name = preprocessed["folder_name"]
-    movement_type = preprocessed["movement_type"]
-    
-    for group, trials in {
-        "BILATERAL": preprocessed["bilateral"],
-        "LEFT": preprocessed["left"],
-        "RIGHT": preprocessed["right"]
-    }.items():
-        for name, df in trials.items():
-            # Kurzer Name für den Ordner, voller Name für die Datei
-            target_dir = out_dir / subject_id / phase / folder_name
-            target_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Beispiel: SQ_L_01_Squatting Left.csv
-            file_name = f"{name}_{movement_type}.csv"
-            out_path = target_dir / file_name
-            
-            df.to_csv(out_path, index=False)
-            print(f"[SAVED] {out_path.relative_to(out_dir)}")
+        # NaN-Zeilen zaehlen (informativ, kein Abbruch)
+        n_nan = trial_df.iloc[:, 1:].isna().all(axis=1).sum()
+        if n_nan > 0:
+            print(f"  [INFO] {short_name}: {n_nan} vollstaendige NaN-Zeilen (normal bei unterschiedlichen Trial-Laengen)")
+
+        # Ausgabepfad
+        out_dir = OUTPUT_DIR / subject_id / phase / movement / side
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{short_name}.csv"
+
+        trial_df.to_csv(out_path, index=False)
+        print(f"  [OK] {out_path.relative_to(OUTPUT_DIR)}")
+        saved += 1
+
+    return saved
+
+
+# -----------------------------------------------------------------------------
+# Entry Point
+# -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    all_files = list(SOURCE_DIR.rglob("*.csv"))
+    all_files = sorted(SOURCE_DIR.rglob("*.csv"))
     print(f"Gefundene CSV-Dateien: {len(all_files)}")
 
-    for file_path in sorted(all_files):
-        try:
-            preprocessed = preprocess_emg_file(file_path)
-            save_preprocessed_trials(preprocessed, OUTPUT_DIR)
-        except Exception as e:
-            print(f"[ERROR] Fehler bei Datei {file_path.name}: {e}")
+    total_saved  = 0
+    total_errors = 0
 
-    print(f"\n>>> Alle Dateien erfolgreich in {OUTPUT_DIR} gespeichert.")
+    for file_path in all_files:
+        try:
+            n = preprocess_emg_file(file_path)
+            total_saved += n
+        except Exception as e:
+            print(f"[FEHLER] {file_path.name}: {e}")
+            total_errors += 1
+
+    print(f"\n{'='*50}")
+    print(f"FERTIG")
+    print(f"  Gespeicherte Trial-Dateien : {total_saved}")
+    print(f"  Dateien mit Fehler         : {total_errors}")
+    print(f"  Output-Ordner              : {OUTPUT_DIR}")
+    print(f"{'='*50}")
