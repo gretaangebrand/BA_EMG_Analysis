@@ -1,158 +1,386 @@
 import pandas as pd
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import re
+from collections import defaultdict
+
+
+
+
+"""
+04_check_missing_files.py
+=========================
+Vergleicht die Vicon-Metadaten (c3d_metadata_export.xlsx) mit den tatsaechlich
+vorhandenen CSV-Dateien in anonymized_csv_data und erstellt einen Excel-Bericht
+ueber fehlende Dateien.
+
+Kernlogik:
+  - Der Phase-Key (01_PER / 02_OVU / 03_LUT) kommt aus dem Dateinamen der CSV
+    (z.B. S01_02_OVU_CMJ.csv) – NICHT aus der chronologischen Reihenfolge der
+    Sitzungsdaten. Die Sitzungsdaten in der Metadata werden stattdessen verwendet
+    um herauszufinden, welche c3d-Trials pro Phase erwartet werden.
+  - Der Abgleich erfolgt auf Trial-Ebene: jede CSV wird geoeffnet, die c3d-Stems
+    aus Zeile 0 extrahiert, und mit der Metadata verglichen.
+  - Da in einer CSV alle Trials einer Session + Exercise stecken, gilt:
+    Metadata-Datum -> Phase wird durch den Dateinamen der CSV beantwortet
+    (weil du die CSVs korrekt mit der Phase benannt hast).
+"""
 
 # ============================================================
-# EINSTELLUNGEN
+# PFADE 
 # ============================================================
-DATA_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
 RAW_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data\preprocessing_summary.xlsx")
+METADATA_XLS = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\c3d_metadata_export.xlsx")
+REPORT_PATH  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data\preprocessing_summary.xlsx")
 
 
-# Die Blacklist für den Scanner: Wörter, die völlig normal sind und ignoriert werden
-IGNORE_WORDS = {
-    "NAN", "ANALOG", "EMG_RAW", "VOLTS", "V", "SECONDS", "S", "HZ", 
-    "FRAMES", "SUBFRAMES", "ITEM", "UNITS", "LABEL", "DATA", "TIME",
-    "ORIGINAL", "EMPTY", "NONE", "CH", "CHANNEL", "MV"
+
+# ============================================================
+# KONSTANTEN
+# ============================================================
+
+SUBJECT_MAP = {
+    "K_P01": "S01",  "A_P02": "S02",  "A_P05": "S03",  "D_P06": "S04",
+    "P_P07": "S05",  "B_P09": "S06",  "P_P10": "S07",
+    "Batzner_P01": "S08",  "Batzner_P01_JH": "S08",
+    "Lorenz_P02":  "S09",  "Feik_P03": "S10",  "Platzer_P04": "S11",
 }
 
-def scan_all_raw_files():
+TARGET_EXERCISES = [
+    "Counter-movement jump session",
+    "Counter-movement jump session_2",
+    "Drop jump session",
+    "Drop jump session_2",
+    "Squatting session",
+    "Squatting session_3",
+]
+
+
+# ============================================================
+# HILFSFUNKTIONEN
+# ============================================================
+
+def exercise_to_short(exercise_name: str) -> str:
+    """Vicon Exercise-Name -> Kurzkuerzel (CMJ / DJ / SQ)."""
+    e = exercise_name.lower()
+    if "counter" in e: return "CMJ"
+    if "drop"    in e: return "DJ"
+    if "squat"   in e: return "SQ"
+    return "OTHER"
+
+
+def stem_to_short(c3d_stem: str) -> str:
+    """c3d-Dateiname-Stem -> Kurzkuerzel."""
+    s = c3d_stem.upper()
+    if "COUNTER-MOVEMENT JUMP" in s: return "CMJ"
+    if "DROP JUMP"             in s: return "DJ"
+    if "SQUAT"                 in s: return "SQ"
+    return "OTHER"
+
+
+def read_c3d_stems_from_csv(csv_path: Path) -> set[str]:
     """
-    Geht direkt in den RAW_DIR und liest aus jeder Originaldatei die ersten 10 Zeilen.
-    Sucht nach manuellen Kommentaren (z.B. "BAD", "FAILED" oder anderen Texten).
+    Oeffnet eine CSV, liest Zeile 0 (die Trial-Pfade) und gibt
+    die Dateinamen-Stems (ohne .c3d) als Upper-Case-Set zurueck.
+    Funktioniert auch wenn die Pfade Windows-Backslashes enthalten.
     """
-    raw_data_list = []
-    
-    if not RAW_DIR.exists():
-        print(f"[FEHLER] RAW Ordner nicht gefunden: {RAW_DIR}")
-        return pd.DataFrame()
-
-    all_raw_files = list(RAW_DIR.rglob("*.csv"))
-    print(f"Scanne {len(all_raw_files)} ORIGINAL-Dateien auf Kommentare...")
-
-    for raw_path in all_raw_files:
-        try:
-            # Lese die ersten 10 Zeilen der Original-Datei
-            df_head = pd.read_csv(raw_path, header=None, nrows=10, low_memory=False)
-            
-            for col in df_head.columns:
-                # Hole alle Werte dieser Spalte als Liste
-                col_data = df_head[col].tolist()
-                
-                # Der Trial-Name steht meist ganz oben in Zeile 0
-                trial_id_raw = str(col_data[0]).strip()
-                trial_name = Path(trial_id_raw).stem 
-                
-                # Wir überspringen leere Spalten oder reine Zeit-Spalten
-                if trial_name.upper() in ["NAN", "TIME", "FRAMES"]:
-                    continue
-                
-                custom_texts = []
-                for cell in col_data:
-                    # GANZ WICHTIG (Der Bugfix): Zwinge den Wert zu einem String!
-                    val = str(cell).strip().upper()
-                    
-                    # 1. Leere Werte ignorieren
-                    if val == "NAN" or val == "": 
-                        continue
-                    
-                    # 2. Reine Zahlen ignorieren (auch Kommazahlen)
-                    if re.match(r'^-?\d+(\.\d+)?$', val): 
-                        continue
-                        
-                    # 3. Standard-Begriffe ignorieren
-                    if val in IGNORE_WORDS: 
-                        continue
-                        
-                    # 4. Den eigentlichen Spaltennamen ignorieren
-                    if val == trial_name.upper() or val == trial_id_raw.upper(): 
-                        continue
-
-                    # Wenn es ein Dateipfad ist, kürze ihn, damit die Excel lesbar bleibt
-                    if "\\" in val or "/" in val: 
-                        val = Path(val).name
-                        
-                    custom_texts.append(val)
-                
-                # Nur speichern, wenn wir was gefunden haben, das nicht Standard ist
-                if custom_texts:
-                    # Duplikate entfernen
-                    unique_texts = " | ".join(list(dict.fromkeys(custom_texts)))
-                    raw_data_list.append({
-                        "Original_Datei": raw_path.name,
-                        "Trial_Spalte": trial_name,
-                        "Gefundener_Zusatztext": unique_texts
-                    })
-                    
-        except Exception as e:
-            print(f"  [WARNUNG] Konnte {raw_path.name} nicht analysieren: {e}")
-
-    return pd.DataFrame(raw_data_list)
+    try:
+        row0 = pd.read_csv(csv_path, header=None, nrows=1, low_memory=False).iloc[0].dropna()
+        stems = set()
+        for val in row0:
+            s = str(val)
+            if ".c3d" in s.lower():
+                stems.add(PureWindowsPath(s).stem.upper())
+        return stems
+    except Exception as e:
+        print(f"  [WARNUNG] Konnte {csv_path.name} nicht lesen: {e}")
+        return set()
 
 
-def scan_processed_files():
+def parse_csv_filename(filename: str) -> tuple[str, str, str] | None:
     """
-    Scant den Ordner mit den fertig verarbeiteten Trials und erstellt die Statistik.
+    Parst den Dateinamen einer anonymisierten CSV.
+    Erwartet Format: <SubjectID>_<Phase>_<Exercise>.csv
+    Beispiel: S01_02_OVU_CMJ.csv  ->  ('S01', '02_OVU', 'CMJ')
+    Gibt None zurueck wenn das Format nicht passt.
     """
-    audit_data = []
-    if not DATA_DIR.exists():
-        print(f"[FEHLER] Processed Ordner nicht gefunden: {DATA_DIR}")
-        return pd.DataFrame(), pd.DataFrame()
+    stem = Path(filename).stem   # z.B. "S01_02_OVU_CMJ"
+    parts = stem.split("_")
+    # Mindest-Format: S01_02_OVU_CMJ -> ['S01','02','OVU','CMJ']
+    if len(parts) < 4:
+        return None
+    subject_id  = parts[0]                    # S01
+    phase       = f"{parts[1]}_{parts[2]}"    # 02_OVU
+    exercise    = parts[3]                    # CMJ
+    return subject_id, phase, exercise
 
-    all_processed = list(DATA_DIR.rglob("*.csv"))
-    print(f"Zähle {len(all_processed)} VERARBEITETE Dateien...")
-    
-    for file in all_processed:
-        parts = file.relative_to(DATA_DIR).parts
-        if len(parts) >= 3:
-            audit_data.append({
-                "Subject": parts[0],
-                "Phase": parts[1],
-                "Exercise": parts[2],
-                "Gespeicherte_Datei": file.name
+
+# ============================================================
+# SCHRITT 1: Metadaten laden und aufbereiten
+# ============================================================
+
+def load_metadata(metadata_path: Path) -> pd.DataFrame:
+    """
+    Laedt die Metadaten-Excel, filtert auf relevante Subjects + Exercises
+    und gibt einen DataFrame zurueck mit Spalten:
+      subject_id, SESSION_DATE, EXERCISE, exercise_short, c3d_stem_upper
+    """
+    df = pd.read_excel(metadata_path)
+
+    df["subject_id"] = df["PARTICIPANT"].map(SUBJECT_MAP)
+    df = df[df["subject_id"].notna() & df["EXERCISE"].isin(TARGET_EXERCISES)].copy()
+
+    df["exercise_short"]  = df["EXERCISE"].apply(exercise_to_short)
+    df["c3d_stem_upper"]  = df["C3D_FILENAME"].apply(lambda x: Path(str(x)).stem.upper())
+
+    return df[["subject_id", "SESSION_DATE", "EXERCISE", "exercise_short",
+               "c3d_stem_upper", "C3D_FILENAME"]].reset_index(drop=True)
+
+
+# ============================================================
+# SCHRITT 2: Phase-Datum-Mapping aus den CSV-Dateien ableiten
+# ============================================================
+
+def build_phase_date_map(csv_files: list[Path], df_meta: pd.DataFrame) -> dict:
+    """
+    Liest jede CSV-Datei aus, schaut welche c3d-Stems drin sind, und
+    matcht diese gegen die Metadata um das Sitzungsdatum zu ermitteln.
+
+    Gibt zurueck:
+      { (subject_id, phase, exercise_short) : SESSION_DATE }
+
+    Damit wissen wir: diese CSV gehoert zu diesem Metadata-Sitzungsdatum.
+    """
+    phase_date_map = {}
+
+    for csv_path in csv_files:
+        parsed = parse_csv_filename(csv_path.name)
+        if parsed is None:
+            continue
+        subject_id, phase, exercise_short = parsed
+        if subject_id not in {v for v in SUBJECT_MAP.values()}:
+            continue
+
+        stems_in_csv = read_c3d_stems_from_csv(csv_path)
+        if not stems_in_csv:
+            continue
+
+        # Finde das Sitzungsdatum in der Metadata das zu diesen Stems passt
+        candidates = df_meta[
+            (df_meta["subject_id"]       == subject_id) &
+            (df_meta["exercise_short"]   == exercise_short) &
+            (df_meta["c3d_stem_upper"].isin(stems_in_csv))
+        ]
+
+        if candidates.empty:
+            print(f"  [INFO] Kein Metadata-Match fuer {csv_path.name}")
+            continue
+
+        # Alle Stems sollten aus derselben Sitzung kommen
+        dates = candidates["SESSION_DATE"].unique()
+        if len(dates) > 1:
+            print(f"  [WARNUNG] {csv_path.name} matcht mehrere Sitzungsdaten: {dates}")
+
+        session_date = dates[0]
+        key = (subject_id, phase, exercise_short)
+        phase_date_map[key] = session_date
+
+    return phase_date_map
+
+
+# ============================================================
+# SCHRITT 3: Vergleich Metadata vs. CSV-Inhalt
+# ============================================================
+
+def find_missing_trials(
+    csv_files: list[Path],
+    df_meta: pd.DataFrame,
+    phase_date_map: dict,
+) -> tuple[list[dict], list[dict]]:
+    """
+    Vergleicht pro CSV-Datei die enthaltenen c3d-Stems mit den erwarteten
+    Stems aus der Metadata.
+
+    Gibt zurueck:
+      missing_trials: Trials die laut Metadata existieren sollten, aber fehlen
+      extra_trials:   Trials die in der CSV sind, aber nicht in der Metadata
+    """
+    missing_trials = []
+    extra_trials   = []
+
+    for csv_path in csv_files:
+        parsed = parse_csv_filename(csv_path.name)
+        if parsed is None:
+            continue
+        subject_id, phase, exercise_short = parsed
+
+        key = (subject_id, phase, exercise_short)
+        session_date = phase_date_map.get(key)
+
+        if session_date is None:
+            print(f"  [INFO] Kein Sitzungsdatum bekannt fuer {csv_path.name} – uebersprungen")
+            continue
+
+        # Erwartete Stems aus der Metadata fuer diese Sitzung
+        expected = set(
+            df_meta.loc[
+                (df_meta["subject_id"]     == subject_id) &
+                (df_meta["exercise_short"] == exercise_short) &
+                (df_meta["SESSION_DATE"]   == session_date),
+                "c3d_stem_upper"
+            ]
+        )
+
+        # Tatsaechliche Stems in der CSV
+        actual = read_c3d_stems_from_csv(csv_path)
+
+        # Vergleich
+        missing = expected - actual
+        extra   = actual - expected
+
+        for stem in sorted(missing):
+            # Originalzeilendaten fuer den Bericht
+            meta_row = df_meta[
+                (df_meta["subject_id"]     == subject_id) &
+                (df_meta["exercise_short"] == exercise_short) &
+                (df_meta["SESSION_DATE"]   == session_date) &
+                (df_meta["c3d_stem_upper"] == stem)
+            ]
+            c3d_filename = meta_row["C3D_FILENAME"].iloc[0] if not meta_row.empty else stem
+            missing_trials.append({
+                "CSV_Datei":      csv_path.name,
+                "Subject_ID":     subject_id,
+                "Phase":          phase,
+                "Exercise":       exercise_short,
+                "Sitzungsdatum":  str(session_date)[:10],
+                "Fehlender_Trial": c3d_filename,
+                "c3d_Stem":       stem,
             })
 
-    df = pd.DataFrame(audit_data)
-    if df.empty:
-        return df, pd.DataFrame()
-        
-    # Erstelle die Pivot-Tabelle (Übersicht)
-    summary_table = df.pivot_table(index=["Subject", "Phase"], columns="Exercise", values="Gespeicherte_Datei", aggfunc="count", fill_value=0)
-    summary_table["TOTAL_TRIALS"] = summary_table.sum(axis=1)
-    
-    return df, summary_table
+        for stem in sorted(extra):
+            extra_trials.append({
+                "CSV_Datei":   csv_path.name,
+                "Subject_ID":  subject_id,
+                "Phase":       phase,
+                "Exercise":    exercise_short,
+                "Extra_Trial": stem,
+                "Hinweis":     "In CSV gefunden, aber nicht in Metadata",
+            })
+
+    return missing_trials, extra_trials
+
+
+# ============================================================
+# SCHRITT 4: Fehlende CSV-Dateien pruefen
+# ============================================================
+
+def find_missing_csv_files(
+    csv_files: list[Path],
+    df_meta: pd.DataFrame,
+    phase_date_map: dict,
+) -> list[dict]:
+    """
+    Prueft ob fuer alle Subject + Phase + Exercise Kombinationen
+    eine CSV-Datei vorhanden ist.
+    """
+    existing_keys = set()
+    for csv_path in csv_files:
+        parsed = parse_csv_filename(csv_path.name)
+        if parsed:
+            existing_keys.add(parsed)
+
+    # Alle Kombinationen die laut Metadata existieren sollten
+    missing_csvs = []
+    for (subject_id, phase, exercise_short), _ in phase_date_map.items():
+        if (subject_id, phase, exercise_short) not in existing_keys:
+            missing_csvs.append({
+                "Subject_ID": subject_id,
+                "Phase":      phase,
+                "Exercise":   exercise_short,
+                "Erwartete_CSV": f"{subject_id}_{phase}_{exercise_short}.csv",
+                "Hinweis": "CSV-Datei fehlt komplett",
+            })
+
+    return missing_csvs
+
+
+# ============================================================
+# HAUPTFUNKTION
+# ============================================================
+
+def main():
+    print("=" * 60)
+    print("Starte Lueckenanalyse: Metadata vs. CSV-Dateien")
+    print("=" * 60)
+
+    # Dateien sammeln
+    all_csvs = sorted(RAW_DIR.rglob("*.csv"))
+    print(f"\nGefundene CSV-Dateien in {RAW_DIR.name}: {len(all_csvs)}")
+    if not all_csvs:
+        print("[FEHLER] Keine CSV-Dateien gefunden. Pfad pruefen.")
+        return
+
+    # Metadaten laden
+    print(f"\nLade Metadaten: {METADATA_XLS.name} ...")
+    df_meta = load_metadata(METADATA_XLS)
+    print(f"Relevante Metadata-Zeilen: {len(df_meta)}")
+
+    # Phase-Datum-Mapping aufbauen
+    print("\nOrdne CSV-Dateien ihren Sitzungsdaten zu ...")
+    phase_date_map = build_phase_date_map(all_csvs, df_meta)
+    print(f"Gemappte CSV-Sitzungen: {len(phase_date_map)}")
+
+    # Fehlende Trials innerhalb vorhandener CSVs
+    print("\nPruefe Trial-Vollstaendigkeit in jeder CSV ...")
+    missing_trials, extra_trials = find_missing_trials(all_csvs, df_meta, phase_date_map)
+
+    # Fehlende CSV-Dateien insgesamt
+    missing_csvs = find_missing_csv_files(all_csvs, df_meta, phase_date_map)
+
+    # Ergebnisse ausgeben
+    print("\n" + "=" * 60)
+    print("ERGEBNIS")
+    print("=" * 60)
+
+    if not missing_csvs and not missing_trials:
+        print("\n[OK] Alle Dateien und Trials vollstaendig vorhanden!")
+    else:
+        if missing_csvs:
+            print(f"\n[!] {len(missing_csvs)} fehlende CSV-Dateien (komplett):")
+            for r in missing_csvs:
+                print(f"    {r['Erwartete_CSV']}")
+
+        if missing_trials:
+            print(f"\n[!] {len(missing_trials)} fehlende Trials in vorhandenen CSVs:")
+            for r in missing_trials:
+                print(f"    {r['CSV_Datei']}  ->  fehlt: {r['Fehlender_Trial']}")
+
+    if extra_trials:
+        print(f"\n[i] {len(extra_trials)} Extra-Trials (in CSV, nicht in Metadata):")
+        for r in extra_trials:
+            print(f"    {r['CSV_Datei']}  ->  extra: {r['Extra_Trial']}")
+
+    # Excel-Bericht speichern
+    print(f"\nSpeichere Bericht: {REPORT_PATH}")
+    with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
+        if missing_csvs:
+            pd.DataFrame(missing_csvs).to_excel(writer, sheet_name="Fehlende_CSV_Dateien", index=False)
+        if missing_trials:
+            pd.DataFrame(missing_trials).to_excel(writer, sheet_name="Fehlende_Trials", index=False)
+        if extra_trials:
+            pd.DataFrame(extra_trials).to_excel(writer, sheet_name="Extra_Trials", index=False)
+
+        # Zusammenfassung
+        summary = pd.DataFrame([{
+            "Gefundene_CSV_Dateien":    len(all_csvs),
+            "Gemappte_Sitzungen":       len(phase_date_map),
+            "Fehlende_CSV_Dateien":     len(missing_csvs),
+            "Fehlende_Trials_in_CSVs":  len(missing_trials),
+            "Extra_Trials":             len(extra_trials),
+        }])
+        summary.to_excel(writer, sheet_name="Zusammenfassung", index=False)
+
+    print("\nFERTIG.")
 
 
 if __name__ == "__main__":
-    print("Starte Bulletproof-Scan...\n" + "="*40)
-    
-    # 1. Hole alle Kommentare aus den Originaldateien
-    df_raw_comments = scan_all_raw_files()
-    
-    # 2. Hole die Statistik der verarbeiteten Dateien
-    df_processed, df_summary = scan_processed_files()
-    
-    # 3. Speichere alles sauber in Excel ab
-    try:
-        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with pd.ExcelWriter(REPORT_PATH, engine='openpyxl') as writer:
-            
-            # Tab 1: Statistik
-            if not df_summary.empty:
-                df_summary.to_excel(writer, sheet_name='Statistik_Übersicht')
-                
-            # Tab 2: Alle verarbeiteten Dateien
-            if not df_processed.empty:
-                df_processed.sort_values(["Subject", "Phase", "Exercise"]).to_excel(writer, sheet_name='Verarbeitete_Dateien', index=False)
-            
-            # Tab 3: Alle gefundenen Kommentare aus den Original-CSVs
-            if not df_raw_comments.empty:
-                df_raw_comments.sort_values(["Original_Datei", "Trial_Spalte"]).to_excel(writer, sheet_name='RAW_Inhalte_Komplett', index=False)
-            else:
-                pd.DataFrame({"Info": ["Keine abweichenden Metadaten in den Original-CSVs gefunden."]}).to_excel(writer, sheet_name='RAW_Inhalte_Komplett', index=False)
-                
-        print(f"\n[OK] Excel erfolgreich erstellt: {REPORT_PATH}")
-        
-    except PermissionError:
-        print("\n[!!!] FEHLER: Die Excel-Datei ist noch offen. Bitte in Excel schließen und Skript neu starten!")
+    main()
