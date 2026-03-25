@@ -114,21 +114,21 @@ def detect_movement(file_path: Path) -> str | None:
     s = str(file_path).lower()
 
     if "drop jump" in s or "_dj" in s:
-        return "Drop Jump Bilateral"
+        return "DJ"
 
     if "counter-movement jump" in s or "_cmj" in s:
         if "left" in s:
             return "Counter-Movement Jump Left"
         if "right" in s:
             return "Counter-Movement Jump Right"
-        return "Counter-Movement Jump Bilateral"
+        return "CMJ"
 
     if "squatting" in s or "squat" in s or "_sq" in s:
         if "left" in s:
             return "Squatting Left"
         if "right" in s:
             return "Squatting Right"
-        return "Squatting Bilateral"
+        return "SQ"
 
     print(f"[WARNUNG] Bewegung nicht erkannt in: {file_path.name}")
     return "UNKNOWN_MOVEMENT"
@@ -138,7 +138,8 @@ def detect_movement(file_path: Path) -> str | None:
 # S08-Skalierung
 # -----------------------------------------------------------------------------
 
-def apply_s08_scaling(df, subject_id: str):
+def apply_s08_scaling(df, subject_id: str): 
+    #hier noch 04_Platzer bzw S11 in phase 03_luteal und Übung DJ auch skalieren - keep in MIND!!!
     """
     Skaliert EMG-Daten fuer S08 um Faktor 1.000.000.
     Fuer alle anderen Subjects unveraendert.
@@ -172,7 +173,7 @@ def make_short_trial_name(trial_name: str) -> str:
         m = re.search(r"(\d+)$", s)
         return int(m.group(1)) if m else 0
 
-    # CMJ
+    # CMJ, hier gibt es Rechts und Links schon
     if re.search(r"Counter-Movement Jump Left", name, re.IGNORECASE):
         return f"CMJ_L_{_num(name):02d}"
     if re.search(r"Counter-Movement Jump Right", name, re.IGNORECASE):
@@ -180,15 +181,15 @@ def make_short_trial_name(trial_name: str) -> str:
     if re.search(r"Counter-Movement Jump", name, re.IGNORECASE):
         return f"CMJ_{_num(name):02d}"
 
-    # DJ
+    # DJ, gibt hier nur DJ Bilateral, RE und LI könnt eig raus, aber mal noch drinne gelassen
     if re.search(r"Drop Jump Left", name, re.IGNORECASE):
         return f"DJ_L_{_num(name):02d}"
     if re.search(r"Drop Jump Right", name, re.IGNORECASE):
         return f"DJ_R_{_num(name):02d}"
-    if re.search(r"Drop Jump", name, re.IGNORECASE):
+    if re.search(r"Drop Jump Bilateral", name, re.IGNORECASE):
         return f"DJ_{_num(name):02d}"
 
-    # Squat
+    # Squat, hier gibt es Rechts und Links schon
     if re.search(r"Squat(?:ting)? Left", name, re.IGNORECASE):
         return f"SQ_L_{_num(name):02d}"
     if re.search(r"Squat(?:ting)? Right", name, re.IGNORECASE):
