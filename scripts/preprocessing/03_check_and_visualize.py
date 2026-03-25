@@ -7,147 +7,152 @@ import re
 # ============================================================
 DATA_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
 RAW_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data\processing_summary.xlsx")
+REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data\preprocessing_summary.xlsx")
 
-def extract_all_custom_text(raw_path):
+
+# Die Blacklist für den Scanner: Wörter, die völlig normal sind und ignoriert werden
+IGNORE_WORDS = {
+    "NAN", "ANALOG", "EMG_RAW", "VOLTS", "V", "SECONDS", "S", "HZ", 
+    "FRAMES", "SUBFRAMES", "ITEM", "UNITS", "LABEL", "DATA", "TIME",
+    "ORIGINAL", "EMPTY", "NONE", "CH", "CHANNEL", "MV"
+}
+
+def scan_all_raw_files():
     """
-    Sammelt JEDEN Text aus den ersten 10 Zeilen, der kein Vicon-Standard und keine Zahl ist.
+    Geht direkt in den RAW_DIR und liest aus jeder Originaldatei die ersten 10 Zeilen.
+    Sucht nach manuellen Kommentaren (z.B. "BAD", "FAILED" oder anderen Texten).
     """
-    if not raw_path.exists():
-        return {}
+    raw_data_list = []
+    
+    if not RAW_DIR.exists():
+        print(f"[FEHLER] RAW Ordner nicht gefunden: {RAW_DIR}")
+        return pd.DataFrame()
 
-    # Die Blacklist: Diese Begriffe sind völlig normal und werden ignoriert
-    IGNORE_WORDS = {
-        "NAN", "ANALOG", "EMG_RAW", "VOLTS", "V", "SECONDS", "S", "HZ", 
-        "FRAMES", "SUBFRAMES", "ITEM", "UNITS", "LABEL", "DATA", "TIME",
-        "ORIGINAL", "EMPTY", "NONE", "CH", "CHANNEL"
-    }
+    all_raw_files = list(RAW_DIR.rglob("*.csv"))
+    print(f"Scanne {len(all_raw_files)} ORIGINAL-Dateien auf Kommentare...")
 
-    extracted_info = {}
-    try:
-        # Lese die ersten 10 Zeilen (Metadaten-Bereich)
-        df_head = pd.read_csv(raw_path, header=None, nrows=10, low_memory=False)
-        
-        for col in df_head.columns:
-            col_data = df_head[col].astype(str).tolist()
+    for raw_path in all_raw_files:
+        try:
+            # Lese die ersten 10 Zeilen der Original-Datei
+            df_head = pd.read_csv(raw_path, header=None, nrows=10, low_memory=False)
             
-            # Zeile 0 ist meist der Pfad oder Trial-Name (z.B. "Squatting 1")
-            trial_id_raw = col_data[0]
-            trial_name = Path(trial_id_raw).stem 
-            
-            custom_texts = []
-            for cell in col_data:
-                val = str(cell).strip().upper()
+            for col in df_head.columns:
+                # Hole alle Werte dieser Spalte als Liste
+                col_data = df_head[col].tolist()
                 
-                # 1. Leere Zellen ignorieren
-                if val == "NAN" or val == "": 
+                # Der Trial-Name steht meist ganz oben in Zeile 0
+                trial_id_raw = str(col_data[0]).strip()
+                trial_name = Path(trial_id_raw).stem 
+                
+                # Wir überspringen leere Spalten oder reine Zeit-Spalten
+                if trial_name.upper() in ["NAN", "TIME", "FRAMES"]:
                     continue
                 
-                # 2. Reine Zahlen ignorieren (auch Kommazahlen oder negative Zahlen)
-                if re.match(r'^-?\d+(\.\d+)?$', val): 
-                    continue
+                custom_texts = []
+                for cell in col_data:
+                    # GANZ WICHTIG (Der Bugfix): Zwinge den Wert zu einem String!
+                    val = str(cell).strip().upper()
+                    
+                    # 1. Leere Werte ignorieren
+                    if val == "NAN" or val == "": 
+                        continue
+                    
+                    # 2. Reine Zahlen ignorieren (auch Kommazahlen)
+                    if re.match(r'^-?\d+(\.\d+)?$', val): 
+                        continue
+                        
+                    # 3. Standard-Begriffe ignorieren
+                    if val in IGNORE_WORDS: 
+                        continue
+                        
+                    # 4. Den eigentlichen Spaltennamen ignorieren
+                    if val == trial_name.upper() or val == trial_id_raw.upper(): 
+                        continue
+
+                    # Wenn es ein Dateipfad ist, kürze ihn, damit die Excel lesbar bleibt
+                    if "\\" in val or "/" in val: 
+                        val = Path(val).name
+                        
+                    custom_texts.append(val)
                 
-                # 3. Standard-Vicon-Wörter ignorieren
-                if val in IGNORE_WORDS: 
-                    continue
-                
-                # 4. Den eigentlichen Trial-Namen ignorieren (kennen wir schon)
-                if val == trial_name.upper() or val == trial_id_raw.upper(): 
-                    continue
+                # Nur speichern, wenn wir was gefunden haben, das nicht Standard ist
+                if custom_texts:
+                    # Duplikate entfernen
+                    unique_texts = " | ".join(list(dict.fromkeys(custom_texts)))
+                    raw_data_list.append({
+                        "Original_Datei": raw_path.name,
+                        "Trial_Spalte": trial_name,
+                        "Gefundener_Zusatztext": unique_texts
+                    })
+                    
+        except Exception as e:
+            print(f"  [WARNUNG] Konnte {raw_path.name} nicht analysieren: {e}")
 
-                # Wenn es ein Dateipfad ist, machen wir ihn kürzer, damit die Excel lesbar bleibt
-                if "\\" in val or "/" in val:
-                    val = Path(val).name
+    return pd.DataFrame(raw_data_list)
 
-                custom_texts.append(val)
-            
-            # Duplikate entfernen, aber Reihenfolge beibehalten
-            if custom_texts:
-                unique_texts = list(dict.fromkeys(custom_texts))
-                extracted_info[trial_name] = " | ".join(unique_texts)
-            else:
-                extracted_info[trial_name] = "Nur Standard-Werte"
-                
-    except Exception as e:
-        print(f"  [INFO] Fehler beim Scannen von {raw_path.name}: {e}")
-        
-    return extracted_info
 
-def generate_total_scan_audit():
-    if not DATA_DIR.exists():
-        print(f"[FEHLER] Ordner {DATA_DIR} nicht gefunden!")
-        return
-
+def scan_processed_files():
+    """
+    Scant den Ordner mit den fertig verarbeiteten Trials und erstellt die Statistik.
+    """
     audit_data = []
-    all_files = list(DATA_DIR.rglob("*.csv"))
-    raw_cache = {}
+    if not DATA_DIR.exists():
+        print(f"[FEHLER] Processed Ordner nicht gefunden: {DATA_DIR}")
+        return pd.DataFrame(), pd.DataFrame()
 
-    print(f"Starte ALLES-SCANNER auf {len(all_files)} Dateien...")
-
-    for file in all_files:
+    all_processed = list(DATA_DIR.rglob("*.csv"))
+    print(f"Zähle {len(all_processed)} VERARBEITETE Dateien...")
+    
+    for file in all_processed:
         parts = file.relative_to(DATA_DIR).parts
         if len(parts) >= 3:
-            sub, ph, ex = parts[0], parts[1], parts[2]
-            raw_filename = f"{sub}_{ph}_{ex}.csv"
-            raw_path = RAW_DIR / raw_filename
-            
-            # Datei nur einmal einlesen und cachen
-            if raw_filename not in raw_cache:
-                raw_cache[raw_filename] = extract_all_custom_text(raw_path)
-            
-            my_trial_info = "Trial in Original-CSV nicht gefunden"
-            current_raw_info = raw_cache[raw_filename]
-            
-            # Ordne die gefundenen Texte unserer Datei zu (z.B. SQ_L_01 -> Squatting Left 1)
-            file_stem_upper = file.stem.upper()
-            f_num = "".join(filter(str.isdigit, file.stem)) # Holt die Zahl '01'
-            
-            for v_name, content in current_raw_info.items():
-                v_name_upper = v_name.upper()
-                v_num = "".join(filter(str.isdigit, v_name))
-                
-                # Prüfe, ob es die gleiche Übung (z.B. CMJ) und die gleiche Nummer ist
-                if v_num == f_num or int(v_num or 0) == int(f_num or 0):
-                    # Unterscheide zwischen Left, Right und Bilateral
-                    is_left = "_L_" in file_stem_upper
-                    is_right = "_R_" in file_stem_upper
-                    v_is_left = "LEFT" in v_name_upper
-                    v_is_right = "RIGHT" in v_name_upper
-                    
-                    if (is_left == v_is_left) and (is_right == v_is_right):
-                        my_trial_info = content
-                        break
-            
             audit_data.append({
-                "Subject": sub,
-                "Phase": ph,
-                "Exercise": ex,
-                "File": file.name,
-                "Gefundener_Zusatztext": my_trial_info
+                "Subject": parts[0],
+                "Phase": parts[1],
+                "Exercise": parts[2],
+                "Gespeicherte_Datei": file.name
             })
 
     df = pd.DataFrame(audit_data)
-    
-    # Pivot-Tabelle
-    summary_table = df.pivot_table(index=["Subject", "Phase"], columns="Exercise", values="File", aggfunc="count", fill_value=0)
+    if df.empty:
+        return df, pd.DataFrame()
+        
+    # Erstelle die Pivot-Tabelle (Übersicht)
+    summary_table = df.pivot_table(index=["Subject", "Phase"], columns="Exercise", values="Gespeicherte_Datei", aggfunc="count", fill_value=0)
     summary_table["TOTAL_TRIALS"] = summary_table.sum(axis=1)
+    
+    return df, summary_table
 
-    # Excel Export
+
+if __name__ == "__main__":
+    print("Starte Bulletproof-Scan...\n" + "="*40)
+    
+    # 1. Hole alle Kommentare aus den Originaldateien
+    df_raw_comments = scan_all_raw_files()
+    
+    # 2. Hole die Statistik der verarbeiteten Dateien
+    df_processed, df_summary = scan_processed_files()
+    
+    # 3. Speichere alles sauber in Excel ab
     try:
         REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
         with pd.ExcelWriter(REPORT_PATH, engine='openpyxl') as writer:
-            summary_table.to_excel(writer, sheet_name='Statistik_Übersicht')
-            df.sort_values(["Subject", "Phase", "Exercise"]).to_excel(writer, sheet_name='Alles_Scanner_Details', index=False)
             
-            # NEU: Wir drucken den KOMPLETTEN Inhalt der Original-Dateien in ein drittes Blatt
-            raw_data_list = []
-            for datei, inhalte in raw_cache.items():
-                for trial_name, text in inhalte.items():
-                    raw_data_list.append({"Original_CSV": datei, "Trial_Spalte": trial_name, "Gefundener_Text": text})
+            # Tab 1: Statistik
+            if not df_summary.empty:
+                df_summary.to_excel(writer, sheet_name='Statistik_Übersicht')
+                
+            # Tab 2: Alle verarbeiteten Dateien
+            if not df_processed.empty:
+                df_processed.sort_values(["Subject", "Phase", "Exercise"]).to_excel(writer, sheet_name='Verarbeitete_Dateien', index=False)
             
-            pd.DataFrame(raw_data_list).to_excel(writer, sheet_name='RAW_Original_Inhalte', index=False)
+            # Tab 3: Alle gefundenen Kommentare aus den Original-CSVs
+            if not df_raw_comments.empty:
+                df_raw_comments.sort_values(["Original_Datei", "Trial_Spalte"]).to_excel(writer, sheet_name='RAW_Inhalte_Komplett', index=False)
+            else:
+                pd.DataFrame({"Info": ["Keine abweichenden Metadaten in den Original-CSVs gefunden."]}).to_excel(writer, sheet_name='RAW_Inhalte_Komplett', index=False)
+                
+        print(f"\n[OK] Excel erfolgreich erstellt: {REPORT_PATH}")
+        
     except PermissionError:
-        print("\n[!!!] FEHLER: Excel-Datei ist noch offen. Bitte schließen!")
-
-if __name__ == "__main__":
-    generate_total_scan_audit()
+        print("\n[!!!] FEHLER: Die Excel-Datei ist noch offen. Bitte in Excel schließen und Skript neu starten!")
