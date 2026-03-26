@@ -40,7 +40,7 @@ OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG
 # Anzahl Header-Zeilen je Subject-Gruppe
 _HEADER_ROWS_DEFAULT = 5   # S01-S07
 _HEADER_ROWS_SPECIAL = 4   # S08 (und ggf. S09-S11)
-_SPECIAL_SUBJECTS    = {"S08"}
+_SPECIAL_SUBJECTS    = {} # Annahme, dass es ab S08 anders sei, stimmte nicht
 
 
 # -----------------------------------------------------------------------------
