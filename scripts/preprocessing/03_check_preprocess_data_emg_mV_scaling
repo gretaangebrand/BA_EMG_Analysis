@@ -25,10 +25,10 @@ import numpy as np
 # PFADE – anpassen!
 # ============================================================
 SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\emg_amplitude_check.xlsx")
+REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data\emg_amplitude_check.xlsx")
 
 # Bekannte Sonderfälle – werden separat markiert, nicht als Fehler gewertet
-KNOWN_SPECIAL = {"S08"}
+KNOWN_SPECIAL = {"S08", "S09", "S11"}
 
 # Schwellenwerte
 THRESHOLD_VOLT_MAX  = 0.1       # Max unter diesem Wert  -> wahrscheinlich Volt
@@ -268,5 +268,7 @@ def main():
     print("FERTIG.")
 
 
+
 if __name__ == "__main__":
     main()
+
