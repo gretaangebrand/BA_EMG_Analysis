@@ -134,20 +134,6 @@ def detect_movement(file_path: Path) -> str | None:
     return "UNKNOWN_MOVEMENT"
 
 
-# -----------------------------------------------------------------------------
-# S08-Skalierung
-# -----------------------------------------------------------------------------
-
-def apply_s08_scaling(df, subject_id: str): 
-    #hier noch 04_Platzer bzw S11 in phase 03_luteal und Übung DJ auch skalieren - keep in MIND!!!
-    """
-    Skaliert EMG-Daten fuer S08 um Faktor 1.000.000.
-    Fuer alle anderen Subjects unveraendert.
-    """
-    if subject_id == "S08":
-        return df * 1_000_000
-    return df
-
 
 # -----------------------------------------------------------------------------
 # Trial-Kurzname
