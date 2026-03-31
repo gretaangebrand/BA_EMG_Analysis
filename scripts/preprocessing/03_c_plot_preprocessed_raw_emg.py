@@ -218,8 +218,8 @@ def create_plot(
                     trial_events = get_event_times(df)
                     all_event_names.update(trial_events.keys())
 
-            # Vertikale Event-Linien, vorerst mal rausgenommen
-            '''for evt_col, t_val in trial_events.items():
+            # # Vertikale Linien vorerst ausblenden
+            """for evt_col, t_val in trial_events.items():
                 style = EVENT_STYLE.get(
                     evt_col,
                     {"color": "gray", "label": evt_col, "ls": ":"}
@@ -231,7 +231,7 @@ def create_plot(
                     linewidth=1.3,
                     alpha=0.9,
                     zorder=5,
-                )'''
+                )"""
 
             # Nulllinie
             ax.axhline(y=0, color="black", linewidth=0.4, alpha=0.35, zorder=1)
@@ -255,7 +255,7 @@ def create_plot(
         for i in range(min(max_trials, 9))
     ]
 
-    # Vertiakle Linien vorerst rausgenommen
+    # Vertikale Linien vorerst ausblenden
     """event_handles = [
         Line2D([0], [0],
                color=EVENT_STYLE.get(e, {"color": "gray"})["color"],
@@ -266,7 +266,7 @@ def create_plot(
         if e in EVENT_STYLE
     ]"""
 
-    all_handles = trial_handles #+ event_handles (vorerst rausgenommen)
+    all_handles = trial_handles #+ event_handles # Vertikale Linien vorerst ausblenden
     if all_handles:
         fig.legend(
             handles=all_handles,
@@ -318,6 +318,8 @@ def main():
 
     # Fehlende Daten sammeln fuer Uebersichtstabelle
     missing_data_records: list[dict[str, str]] = []
+    # Trial-Anzahl pro Kombination sammeln (fuer <3 Trials Warnung)
+    trial_count_records: list[dict] = []
 
     for subject_dir in subject_dirs:
         subject_id = subject_dir.name
@@ -349,9 +351,17 @@ def main():
                 phase_dir = subject_dir / phase
                 trials_per_phase[phase] = load_trials(phase_dir, exercise, side)
 
-            # Fehlende Phasen erfassen
+            # Fehlende Phasen und Trial-Anzahl erfassen
             for phase in PHASES:
-                if not trials_per_phase[phase]:
+                n_trials = len(trials_per_phase[phase])
+                trial_count_records.append({
+                    "Subject":    subject_id,
+                    "Übung":      exercise,
+                    "Seite":      side,
+                    "Phase":      PHASE_LABELS.get(phase, phase),
+                    "Anzahl Trials": n_trials,
+                })
+                if n_trials == 0:
                     missing_data_records.append({
                         "Subject":  subject_id,
                         "Übung":    exercise,
@@ -382,10 +392,17 @@ def main():
     print(f"  Gespeichert in        : {OUTPUT_DIR}")
 
     # Uebersichtstabelle fehlender Daten erzeugen
-    if missing_data_records:
+    if missing_data_records or trial_count_records:
+        n_incomplete = sum(
+            1 for r in trial_count_records
+            if 0 < r["Anzahl Trials"] < 3
+        )
         print(f"  Fehlende Phasen       : {len(missing_data_records)}")
-        table_path = OUTPUT_DIR / "fehlende_emg_daten_uebersicht.pdf"
-        _export_missing_data_table(missing_data_records, table_path)
+        print(f"  Phasen mit < 3 Trials : {n_incomplete}")
+        table_path = OUTPUT_DIR / "03_preprocessed_plots_emg_daten_uebersicht.pdf"
+        _export_missing_data_table(
+            missing_data_records, trial_count_records, table_path
+        )
     else:
         print("  Fehlende Phasen       : keine")
 
@@ -398,89 +415,94 @@ def main():
 
 def _export_missing_data_table(
     records: list[dict[str, str]],
+    trial_counts: list[dict],
     out_path: Path,
 ) -> None:
     """
     Exportiert eine Uebersichtstabelle der fehlenden preprocessed
     EMG-Daten als Vektorgrafik (PDF).
 
-    Zwei Teile:
-      1. Detailtabelle – jede fehlende Kombination einzeln
-      2. Häufigkeitstabelle – Anzahl fehlender Phasen pro Übung × Phase
+    Drei Teile:
+      1. Häufigkeitstabelle – Anzahl fehlender Phasen pro Übung × Phase
+      2. Unvollständige Trials – Kombinationen mit weniger als 3 Trials
+      3. Detailtabelle – jede fehlende Kombination einzeln
     """
-    df = pd.DataFrame(records)
+    df_missing = pd.DataFrame(records)
+    df_counts  = pd.DataFrame(trial_counts)
 
-    # --- Häufigkeitstabelle: Übung × Phase ---
-    freq = (
-        df.groupby(["Übung", "Phase"])
-        .size()
-        .reset_index(name="Anzahl fehlend")
-        .sort_values(["Übung", "Phase"])
+    # --- Häufigkeitstabelle: Übung × Phase (nur fehlende) ---
+    if not df_missing.empty:
+        freq = (
+            df_missing.groupby(["Übung", "Phase"])
+            .size()
+            .reset_index(name="Anzahl fehlend")
+            .sort_values(["Übung", "Phase"])
+        )
+    else:
+        freq = pd.DataFrame(columns=["Übung", "Phase", "Anzahl fehlend"])
+
+    # --- Unvollständige Trials: 0 < n < 3 ---
+    df_incomplete = (
+        df_counts[
+            (df_counts["Anzahl Trials"] > 0)
+            & (df_counts["Anzahl Trials"] < 3)
+        ]
+        .sort_values(["Subject", "Übung", "Seite", "Phase"])
+        .reset_index(drop=True)
     )
 
-    # --- Layout: 2 Tabellen untereinander ---
-    fig, (ax_freq, ax_detail) = plt.subplots(
-        2, 1,
-        figsize=(10, max(4, 1.0 + 0.35 * len(df) + 0.35 * len(freq))),
-        gridspec_kw={"height_ratios": [
-            max(1, 1 + len(freq)),
-            max(1, 1 + len(df)),
-        ]},
+    # --- Anzahl Tabellen bestimmen ---
+    tables = []
+    if not freq.empty:
+        tables.append(("Fehlende preprocessed EMG-Daten – Zusammenfassung",
+                        freq, 9))
+    if not df_incomplete.empty:
+        tables.append(("Phasen mit weniger als 3 Trials",
+                        df_incomplete, 8))
+    if not df_missing.empty:
+        tables.append(("Detailauflistung aller fehlenden Kombinationen",
+                        df_missing, 8))
+
+    if not tables:
+        return
+
+    n_tables = len(tables)
+    total_rows = sum(len(t[1]) for t in tables)
+    fig_height = max(4, 1.5 * n_tables + 0.35 * total_rows)
+    height_ratios = [max(1, 1 + len(t[1])) for t in tables]
+
+    fig, axes = plt.subplots(
+        n_tables, 1,
+        figsize=(12, fig_height),
+        gridspec_kw={"height_ratios": height_ratios},
+        squeeze=False,
     )
 
-    # ---------- Häufigkeitstabelle ----------
-    ax_freq.axis("off")
-    ax_freq.set_title(
-        "Fehlende preprocessed EMG-Daten – Zusammenfassung",
-        fontsize=11, fontweight="bold", loc="left", pad=10,
-    )
+    for idx, (title, data_df, fontsize) in enumerate(tables):
+        ax = axes[idx, 0]
+        ax.axis("off")
+        ax.set_title(title, fontsize=11, fontweight="bold", loc="left", pad=10)
 
-    freq_table = ax_freq.table(
-        cellText=freq.values,
-        colLabels=freq.columns,
-        cellLoc="center",
-        loc="upper left",
-    )
-    freq_table.auto_set_font_size(False)
-    freq_table.set_fontsize(9)
-    freq_table.scale(1.0, 1.4)
+        tbl = ax.table(
+            cellText=data_df.values,
+            colLabels=data_df.columns,
+            cellLoc="center",
+            loc="upper left",
+        )
+        tbl.auto_set_font_size(False)
+        tbl.set_fontsize(fontsize)
+        tbl.scale(1.0, 1.4)
 
-    # Header-Zellen einfaerben
-    for col_idx in range(len(freq.columns)):
-        freq_table[0, col_idx].set_facecolor("#C7C7C7")
-        freq_table[0, col_idx].set_text_props(color="white", fontweight="bold")
+        # Header
+        for col_idx in range(len(data_df.columns)):
+            tbl[0, col_idx].set_facecolor("#767676")
+            tbl[0, col_idx].set_text_props(color="white", fontweight="bold")
 
-    # Zebrastreifen
-    for row_idx in range(1, len(freq) + 1):
-        color = "#F2F2F2" if row_idx % 2 == 0 else "white"
-        for col_idx in range(len(freq.columns)):
-            freq_table[row_idx, col_idx].set_facecolor(color)
-
-    # ---------- Detailtabelle ----------
-    ax_detail.axis("off")
-    ax_detail.set_title(
-        "Detailauflistung aller fehlenden Kombinationen",
-        fontsize=11, fontweight="bold", loc="left", pad=10,
-    )
-
-    detail_table = ax_detail.table(
-        cellText=df.values,
-        colLabels=df.columns,
-        cellLoc="center",
-        loc="upper left",
-    )
-    detail_table.auto_set_font_size(False)
-    detail_table.set_fontsize(8)
-    detail_table.scale(1.0, 1.35)
-
-    for col_idx in range(len(df.columns)):
-        detail_table[0, col_idx].set_facecolor("#C7C7C7")
-        detail_table[0, col_idx].set_text_props(color="white", fontweight="bold")
-
-    for row_idx in range(1, len(df) + 1):
-        color = "#F2F2F2" if row_idx % 2 == 0 else "white"
-        for col_idx in range(len(df.columns)):
-            detail_table[row_idx, col_idx].set_facecolor(color)
+        # Zebrastreifen
+        for row_idx in range(1, len(data_df) + 1):
+            bg = "#F2F2F2" if row_idx % 2 == 0 else "white"
+            for col_idx in range(len(data_df.columns)):
+                tbl[row_idx, col_idx].set_facecolor(bg)
 
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
