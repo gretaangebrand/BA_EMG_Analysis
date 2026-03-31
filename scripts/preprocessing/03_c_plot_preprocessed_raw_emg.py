@@ -1,3 +1,12 @@
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.lines import Line2D
+
 """
 03_plot_raw_emg.py
 ==================
@@ -26,20 +35,12 @@ Hinweis zur unterschiedlichen Aufnahmefrequenz:
   Für EMG-Plots irrelevant: es werden nur die EMG-Spalten (L_*/R_*) geplottet.
 """
 
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-from matplotlib.lines import Line2D
 
 # ============================================================
-# PFADE – anpassen!
+# PFADE
 # ============================================================
 DATA_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
-OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\figures\plots_raw_emg")
+OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\figures\plots_raw_emg")
 
 # ============================================================
 # EINSTELLUNGEN
@@ -182,10 +183,14 @@ def create_plot(
 
             # Kein Daten-Fall
             if not trials:
-                ax.text(0.5, 0.5, "Keine Daten",
+                ax.text(0.5, 0.5,
+                        f"Keine preprocessed EMG-Daten\n"
+                        f"für {exercise} / {side}\n"
+                        f"in {PHASE_LABELS.get(phase, phase)}",
                         ha="center", va="center",
                         transform=ax.transAxes,
-                        fontsize=8, color="#999999")
+                        fontsize=7, color="#999999",
+                        linespacing=1.4)
                 ax.set_xticks([])
                 ax.set_yticks([])
                 continue

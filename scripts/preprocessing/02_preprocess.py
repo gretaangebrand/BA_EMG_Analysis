@@ -42,6 +42,28 @@ _HEADER_ROWS_DEFAULT = 5   # S01-S07
 _HEADER_ROWS_SPECIAL = 4   # S08 (und ggf. S09-S11)
 _SPECIAL_SUBJECTS    = {} # Annahme, dass es ab S08 anders sei, stimmte nicht
 
+# Video-Frame-Rate (Baserate) je nach EMG-Abtastrate.
+# Die Quell-CSVs aus Vicon sind mit der Video-Frame-Rate exportiert
+# (1 Zeile = 1 Kamera-Frame), NICHT mit der EMG-Abtastrate.
+# Die Zuordnung:
+#   EMG 2100 Hz  ->  Video 300 Hz
+#   EMG 2000 Hz  ->  Video 250 Hz
+_VIDEO_FRAME_RATE = {
+    2100: 300,
+    2000: 250,
+}
+
+
+def _get_video_frame_rate(fs_emg: float) -> float:
+    """Gibt die Video-Frame-Rate passend zur EMG-Abtastrate zurueck."""
+    rate = _VIDEO_FRAME_RATE.get(int(fs_emg))
+    if rate is None:
+        raise ValueError(
+            f"Unbekannte EMG-Abtastrate {fs_emg} Hz – "
+            f"bitte _VIDEO_FRAME_RATE ergaenzen."
+        )
+    return rate
+
 
 # -----------------------------------------------------------------------------
 # Hilfsfunktionen: Header
@@ -159,7 +181,17 @@ def build_trial_dataframe(
     n = len(data)
 
     # --- Zeitspalte ---
-    time_s = pd.Series(np.arange(n) / fs, name="time_s")
+    # Die Quell-CSVs sind mit der Video-Frame-Rate exportiert.
+    # Spalte 0 enthaelt den Frame-Zaehler (1-basiert).
+    # Die korrekte Zeit ergibt sich aus:
+    #   time_s = (frame_number - 1) / video_frame_rate
+    video_fps = _get_video_frame_rate(fs)
+    frame_col = pd.to_numeric(data.iloc[:, 0], errors="coerce")
+    if frame_col.notna().all():
+        time_s = pd.Series((frame_col.values - 1) / video_fps, name="time_s")
+    else:
+        # Fallback: fortlaufende Nummerierung mit Video-Frame-Rate
+        time_s = pd.Series(np.arange(n) / video_fps, name="time_s")
 
     # --- Event-Spalten ---
     # Jeder Event (start, take_off, landing, end_jump, landing1, landing2)
@@ -279,7 +311,7 @@ def preprocess_file(file_path: Path) -> int:
         print(f"[FEHLER] Phase nicht erkannt: {file_path} – uebersprungen.")
         return 0
 
-    print(f"\n=== {file_path.name} | {subject_id} | {phase} | fs={fs} Hz ===")
+    print(f"\n=== {file_path.name} | {subject_id} | {phase} | fs_emg={fs} Hz | video_fps={_get_video_frame_rate(fs)} Hz ===")
 
     # Header einlesen
     header      = read_header(file_path, n_hdr)
