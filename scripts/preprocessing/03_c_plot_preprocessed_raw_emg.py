@@ -1,12 +1,3 @@
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-from matplotlib.lines import Line2D
-
 """
 03_plot_raw_emg.py
 ==================
@@ -35,9 +26,17 @@ Hinweis zur unterschiedlichen Aufnahmefrequenz:
   Für EMG-Plots irrelevant: es werden nur die EMG-Spalten (L_*/R_*) geplottet.
 """
 
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.lines import Line2D
 
 # ============================================================
-# PFADE
+# PFADE – anpassen!
 # ============================================================
 DATA_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
 OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\figures\plots_raw_emg")
@@ -219,8 +218,8 @@ def create_plot(
                     trial_events = get_event_times(df)
                     all_event_names.update(trial_events.keys())
 
-            # Vertikale Event-Linien
-            for evt_col, t_val in trial_events.items():
+            # Vertikale Event-Linien, vorerst mal rausgenommen
+            '''for evt_col, t_val in trial_events.items():
                 style = EVENT_STYLE.get(
                     evt_col,
                     {"color": "gray", "label": evt_col, "ls": ":"}
@@ -232,7 +231,7 @@ def create_plot(
                     linewidth=1.3,
                     alpha=0.9,
                     zorder=5,
-                )
+                )'''
 
             # Nulllinie
             ax.axhline(y=0, color="black", linewidth=0.4, alpha=0.35, zorder=1)
@@ -256,7 +255,8 @@ def create_plot(
         for i in range(min(max_trials, 9))
     ]
 
-    event_handles = [
+    # Vertiakle Linien vorerst rausgenommen
+    """event_handles = [
         Line2D([0], [0],
                color=EVENT_STYLE.get(e, {"color": "gray"})["color"],
                linewidth=1.8,
@@ -264,9 +264,9 @@ def create_plot(
                label=EVENT_STYLE.get(e, {"label": e})["label"])
         for e in sorted(all_event_names)
         if e in EVENT_STYLE
-    ]
+    ]"""
 
-    all_handles = trial_handles + event_handles
+    all_handles = trial_handles #+ event_handles (vorerst rausgenommen)
     if all_handles:
         fig.legend(
             handles=all_handles,
@@ -316,6 +316,9 @@ def main():
 
     total_files = 0
 
+    # Fehlende Daten sammeln fuer Uebersichtstabelle
+    missing_data_records: list[dict[str, str]] = []
+
     for subject_dir in subject_dirs:
         subject_id = subject_dir.name
         print(f"\n--- {subject_id} ---")
@@ -346,6 +349,16 @@ def main():
                 phase_dir = subject_dir / phase
                 trials_per_phase[phase] = load_trials(phase_dir, exercise, side)
 
+            # Fehlende Phasen erfassen
+            for phase in PHASES:
+                if not trials_per_phase[phase]:
+                    missing_data_records.append({
+                        "Subject":  subject_id,
+                        "Übung":    exercise,
+                        "Seite":    side,
+                        "Phase":    PHASE_LABELS.get(phase, phase),
+                    })
+
             # Output-Ordner
             out_subdir = OUTPUT_DIR / subject_id / exercise
             out_subdir.mkdir(parents=True, exist_ok=True)
@@ -367,7 +380,112 @@ def main():
     print(f"FERTIG")
     print(f"  Erzeugte Plot-Dateien : {total_files}")
     print(f"  Gespeichert in        : {OUTPUT_DIR}")
+
+    # Uebersichtstabelle fehlender Daten erzeugen
+    if missing_data_records:
+        print(f"  Fehlende Phasen       : {len(missing_data_records)}")
+        table_path = OUTPUT_DIR / "fehlende_emg_daten_uebersicht.pdf"
+        _export_missing_data_table(missing_data_records, table_path)
+    else:
+        print("  Fehlende Phasen       : keine")
+
     print(f"{'='*62}")
+
+
+# ============================================================
+# TABELLE: FEHLENDE DATEN
+# ============================================================
+
+def _export_missing_data_table(
+    records: list[dict[str, str]],
+    out_path: Path,
+) -> None:
+    """
+    Exportiert eine Uebersichtstabelle der fehlenden preprocessed
+    EMG-Daten als Vektorgrafik (PDF).
+
+    Zwei Teile:
+      1. Detailtabelle – jede fehlende Kombination einzeln
+      2. Häufigkeitstabelle – Anzahl fehlender Phasen pro Übung × Phase
+    """
+    df = pd.DataFrame(records)
+
+    # --- Häufigkeitstabelle: Übung × Phase ---
+    freq = (
+        df.groupby(["Übung", "Phase"])
+        .size()
+        .reset_index(name="Anzahl fehlend")
+        .sort_values(["Übung", "Phase"])
+    )
+
+    # --- Layout: 2 Tabellen untereinander ---
+    fig, (ax_freq, ax_detail) = plt.subplots(
+        2, 1,
+        figsize=(10, max(4, 1.0 + 0.35 * len(df) + 0.35 * len(freq))),
+        gridspec_kw={"height_ratios": [
+            max(1, 1 + len(freq)),
+            max(1, 1 + len(df)),
+        ]},
+    )
+
+    # ---------- Häufigkeitstabelle ----------
+    ax_freq.axis("off")
+    ax_freq.set_title(
+        "Fehlende preprocessed EMG-Daten – Zusammenfassung",
+        fontsize=11, fontweight="bold", loc="left", pad=10,
+    )
+
+    freq_table = ax_freq.table(
+        cellText=freq.values,
+        colLabels=freq.columns,
+        cellLoc="center",
+        loc="upper left",
+    )
+    freq_table.auto_set_font_size(False)
+    freq_table.set_fontsize(9)
+    freq_table.scale(1.0, 1.4)
+
+    # Header-Zellen einfaerben
+    for col_idx in range(len(freq.columns)):
+        freq_table[0, col_idx].set_facecolor("#C7C7C7")
+        freq_table[0, col_idx].set_text_props(color="white", fontweight="bold")
+
+    # Zebrastreifen
+    for row_idx in range(1, len(freq) + 1):
+        color = "#F2F2F2" if row_idx % 2 == 0 else "white"
+        for col_idx in range(len(freq.columns)):
+            freq_table[row_idx, col_idx].set_facecolor(color)
+
+    # ---------- Detailtabelle ----------
+    ax_detail.axis("off")
+    ax_detail.set_title(
+        "Detailauflistung aller fehlenden Kombinationen",
+        fontsize=11, fontweight="bold", loc="left", pad=10,
+    )
+
+    detail_table = ax_detail.table(
+        cellText=df.values,
+        colLabels=df.columns,
+        cellLoc="center",
+        loc="upper left",
+    )
+    detail_table.auto_set_font_size(False)
+    detail_table.set_fontsize(8)
+    detail_table.scale(1.0, 1.35)
+
+    for col_idx in range(len(df.columns)):
+        detail_table[0, col_idx].set_facecolor("#C7C7C7")
+        detail_table[0, col_idx].set_text_props(color="white", fontweight="bold")
+
+    for row_idx in range(1, len(df) + 1):
+        color = "#F2F2F2" if row_idx % 2 == 0 else "white"
+        for col_idx in range(len(df.columns)):
+            detail_table[row_idx, col_idx].set_facecolor(color)
+
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Übersichtstabelle     : {out_path.name}")
 
 
 if __name__ == "__main__":
