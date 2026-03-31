@@ -91,13 +91,16 @@ def _col_indices_by_type(
     has_emg_raw: bool,
 ) -> dict[str, list[int]]:
     """
-    Gibt fuer einen Trial drei Listen von Spaltenindizes zurueck:
-
-      'emg'    : ANALOG + EMG_RAW  (oder alle ANALOG wenn kein EMG_RAW vorhanden)
-      'kin'    : LINK_MODEL_BASED  (GRF, Angles, Moments, Power)
+    Gibt fuer einen Trial vier Listen von Spaltenindizes zurueck:
+ 
+      'events' : EVENT_LABEL  (start, take_off, landing, end_jump etc.)
+                 Jeder Event hat genau einen Zeitwert in Sekunden (Zeile 1),
+                 alle weiteren Zeilen sind NaN.
       'scalar' : METRIC + DERIVED  (HEIGHT, MASS, Jumpheight, etc.)
+      'kin'    : LINK_MODEL_BASED  (GRF, Angles, Moments, Power)
+      'emg'    : ANALOG + EMG_RAW  (oder alle ANALOG wenn kein EMG_RAW vorhanden)
     """
-    result = {"emg": [], "kin": [], "scalar": []}
+    result = {"events": [], "scalar": [], "kin": [], "emg": []}
 
     for i, v in enumerate(row0):
         if v != trial_path:
@@ -105,7 +108,10 @@ def _col_indices_by_type(
         typ = row2.iloc[i]
         sub = row3.iloc[i]
 
-        if typ == "ANALOG":
+        if typ == "EVENT_LABEL":
+            result["events"].append(i)
+
+        elif typ == "ANALOG":
             if has_emg_raw:
                 if sub == "EMG_RAW":
                     result["emg"].append(i)
@@ -155,6 +161,23 @@ def build_trial_dataframe(
     # --- Zeitspalte ---
     time_s = pd.Series(np.arange(n) / fs, name="time_s")
 
+    # --- Event-Spalten ---
+    # Jeder Event (start, take_off, landing, end_jump, landing1, landing2)
+    # hat genau einen Zeitwert in Sekunden in der ersten Datenzeile.
+    # Alle weiteren Zeilen sind NaN (Events sind Zeitpunkte, keine Zeitreihen).
+    # Die Werte werden als Konstante in einer eigenen Spalte gespeichert,
+    # damit sie direkt beim Plotten und bei der Segmentierung greifbar sind.
+    # Spaltenname-Schema: "event_<name>_s"  (z.B. "event_take_off_s")
+    event_cols = []
+    for i in col_map["events"]:
+        event_name = row1.iloc[i].strip()
+        col_name   = f"event_{event_name}_s"
+        # Zeitwert aus Zeile 0 der Datenspalte lesen
+        t_val = pd.to_numeric(data.iloc[0, i], errors="coerce")
+        # Als konstante Spalte speichern (nur Zeile 0 hat den Wert, Rest NaN - beides OK)
+        series = pd.Series([t_val] + [np.nan] * (n - 1), name=col_name)
+        event_cols.append(series)
+
     # --- Scalar-Spalten ---
     scalar_cols = []
     for i in col_map["scalar"]:
@@ -176,7 +199,7 @@ def build_trial_dataframe(
     # und muessen mit Faktor 1.000.000 skaliert werden (Volt -> µV):
     #
     #   S08: alle Phasen, alle Uebungen
-    #   S09: alle Phasen, alle Uebungen
+    #   S09: NUR Phase 02_OVU + Uebung SQ und CMJ
     #   S11: NUR Phase 03_LUT + Uebung DJ  (alle anderen S11-Dateien sind OK)
     #
     # WICHTIG: bei neuen Sonderfaellen hier ergaenzen.
@@ -200,8 +223,12 @@ def build_trial_dataframe(
               f"-> * 1.000.000 angewendet")
         
 
-    # Alles zusammenfuehren: time_s | scalar | kin | EMG
-    all_parts = [time_s] + scalar_cols + kin_cols + emg_cols
+    # Alles zusammenfuehren:
+    #   time_s | events | scalar | kinematik | EMG
+    #
+    # Events stehen direkt nach time_s damit sie beim Plotten
+    # sofort greifbar sind ohne die Spalten zu durchsuchen.
+    all_parts = [time_s] + event_cols + scalar_cols + kin_cols + emg_cols
     return pd.concat(all_parts, axis=1)
 
 
