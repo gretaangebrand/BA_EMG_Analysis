@@ -360,7 +360,7 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
     if n_ex == 1:
         axes = [axes]
 
-    phase_colors = {"PER": "#4472C4", "OVU": "#ED7D31", "LUT": "#70AD47"}
+    phase_colors = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
     phase_order  = ["PER", "OVU", "LUT"]
 
     for ax, ex_name in zip(axes, exercises):
@@ -410,7 +410,7 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
     if n_ex == 1:
         axes = [axes]
 
-    phase_colors = {"PER": "#4472C4", "OVU": "#ED7D31", "LUT": "#70AD47"}
+    phase_colors = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
     phase_order  = ["PER", "OVU", "LUT"]
 
     for ax, ex_name in zip(axes, exercises):

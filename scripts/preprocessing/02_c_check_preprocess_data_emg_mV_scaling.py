@@ -24,7 +24,7 @@ import numpy as np
 # ============================================================
 # PFADE – anpassen!
 # ============================================================
-SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
+SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
 REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data\emg_amplitude_check.xlsx")
 
 # Bekannte Sonderfälle – werden separat markiert, nicht als Fehler gewertet

@@ -40,8 +40,8 @@ from scripts.utils.helpers import (
 # -----------------------------------------------------------------------------
 # Pfade
 # -----------------------------------------------------------------------------
-SOURCE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
-OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
+SOURCE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data")
+OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
 
 # Anzahl Header-Zeilen je Subject-Gruppe
 _HEADER_ROWS_DEFAULT = 5   # S01-S07
