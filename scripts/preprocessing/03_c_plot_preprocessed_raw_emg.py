@@ -3,27 +3,22 @@
 ==================
 Plottet die Roh-EMG-Daten pro Subject, Übungstyp und Seite.
 
+Liest die *_emg.csv Dateien aus dem preprocessed-Ordner
+(EMG bei voller Analog-Rate: 2000/2100 Hz, Kinematik separat in *_kin.csv).
+
 Layout pro Plot-Datei (wie von Betreuerin vorgegeben):
   - 5 Zeilen  = 5 Muskeln (Vastus Lateralis, Biceps Femoris,
                             Semitendinosus, Gluteus Medius, Gastrocnemius medial)
   - 3 Spalten = 3 Zyklusphasen (01_PER | 02_OVU | 03_LUT)
   -> 15 Subplots pro Datei
 
-Pro Subject + Übungstyp + Seite werden zwei Dateien erzeugt:
+Pro Subject + Übungstyp + Seite werden zwei Plot-Dateien erzeugt:
   S01_CMJ_BILATERAL_L_leg.pdf   (linkes Bein)
   S01_CMJ_BILATERAL_R_leg.pdf   (rechtes Bein)
 
 Wenn mehrere Trials pro Phase vorhanden sind (z.B. CMJ_01, CMJ_02, CMJ_03),
 werden alle Trials übereinandergelegt — jeder Trial als eigene Linie, leicht
 transparent — damit Konsistenz und Ausreißer sichtbar werden.
-
-Vertikale Linien markieren die Events (start, take_off, landing, end_jump etc.)
-aus den event_*_s Spalten.
-
-Hinweis zur unterschiedlichen Aufnahmefrequenz:
-  EMG:       2000 / 2100 Hz  -> dicht, jede Zeile hat Werte
-  Kinematik: 200 Hz          -> nur jede ~10. Zeile hat Werte, Rest NaN
-  Für EMG-Plots irrelevant: es werden nur die EMG-Spalten (L_*/R_*) geplottet.
 """
 
 from pathlib import Path
@@ -112,21 +107,18 @@ def get_event_times(df: pd.DataFrame) -> dict[str, float]:
 
 def load_trials(phase_dir: Path, exercise: str, side: str) -> list[pd.DataFrame]:
     """
-    Laedt alle Trial-CSVs für phase/exercise/side.
-    NaN-Zeilen (Auffüll-Zeilen von Vicon) werden entfernt.
+    Laedt alle EMG-Trial-CSVs für phase/exercise/side.
+    Seit der Trennung in _emg.csv / _kin.csv enthalten die EMG-Dateien
+    nur noch gueltige Zeilen (kein dropna noetig).
     """
     trial_dir = phase_dir / exercise / side
     if not trial_dir.exists():
         return []
 
     dfs = []
-    for csv in sorted(trial_dir.glob("*.csv")):
+    for csv in sorted(trial_dir.glob("*_emg.csv")):
         try:
-            df      = pd.read_csv(csv, low_memory=False)
-            emg_all = [c for c in df.columns if c.startswith("L_") or c.startswith("R_")]
-            if emg_all:
-                # Nur Zeilen behalten wo mindestens eine EMG-Spalte einen Wert hat
-                df = df.dropna(subset=emg_all, how="all").reset_index(drop=True)
+            df = pd.read_csv(csv, low_memory=False)
             dfs.append(df)
         except Exception as e:
             print(f"    [WARNUNG] {csv.name}: {e}")
@@ -214,24 +206,25 @@ def create_plot(
                 )
 
                 # Events nur aus erstem Trial lesen
-                if t_idx == 0:
-                    trial_events = get_event_times(df)
-                    all_event_names.update(trial_events.keys())
+                # (vorerst deaktiviert – wird spaeter fuer Segmentierung benoetigt)
+                # if t_idx == 0:
+                #     trial_events = get_event_times(df)
+                #     all_event_names.update(trial_events.keys())
 
-            # # Vertikale Linien vorerst ausblenden
-            """for evt_col, t_val in trial_events.items():
-                style = EVENT_STYLE.get(
-                    evt_col,
-                    {"color": "gray", "label": evt_col, "ls": ":"}
-                )
-                ax.axvline(
-                    x=t_val,
-                    color=style["color"],
-                    linestyle=style["ls"],
-                    linewidth=1.3,
-                    alpha=0.9,
-                    zorder=5,
-                )"""
+            # Vertikale Event-Linien (vorerst deaktiviert)
+            # for evt_col, t_val in trial_events.items():
+            #     style = EVENT_STYLE.get(
+            #         evt_col,
+            #         {"color": "gray", "label": evt_col, "ls": ":"}
+            #     )
+            #     ax.axvline(
+            #         x=t_val,
+            #         color=style["color"],
+            #         linestyle=style["ls"],
+            #         linewidth=1.3,
+            #         alpha=0.9,
+            #         zorder=5,
+            #     )
 
             # Nulllinie
             ax.axhline(y=0, color="black", linewidth=0.4, alpha=0.35, zorder=1)
@@ -255,18 +248,18 @@ def create_plot(
         for i in range(min(max_trials, 9))
     ]
 
-    # Vertikale Linien vorerst ausblenden
-    """event_handles = [
-        Line2D([0], [0],
-               color=EVENT_STYLE.get(e, {"color": "gray"})["color"],
-               linewidth=1.8,
-               linestyle=EVENT_STYLE.get(e, {"ls": ":"})["ls"],
-               label=EVENT_STYLE.get(e, {"label": e})["label"])
-        for e in sorted(all_event_names)
-        if e in EVENT_STYLE
-    ]"""
+    # Event-Legende (vorerst deaktiviert)
+    # event_handles = [
+    #     Line2D([0], [0],
+    #            color=EVENT_STYLE.get(e, {"color": "gray"})["color"],
+    #            linewidth=1.8,
+    #            linestyle=EVENT_STYLE.get(e, {"ls": ":"})["ls"],
+    #            label=EVENT_STYLE.get(e, {"label": e})["label"])
+    #     for e in sorted(all_event_names)
+    #     if e in EVENT_STYLE
+    # ]
 
-    all_handles = trial_handles #+ event_handles # Vertikale Linien vorerst ausblenden
+    all_handles = trial_handles
     if all_handles:
         fig.legend(
             handles=all_handles,
@@ -399,7 +392,7 @@ def main():
         )
         print(f"  Fehlende Phasen       : {len(missing_data_records)}")
         print(f"  Phasen mit < 3 Trials : {n_incomplete}")
-        table_path = OUTPUT_DIR / "03_preprocessed_plots_emg_daten_uebersicht.pdf"
+        table_path = OUTPUT_DIR / "fehlende_emg_daten_uebersicht.pdf"
         _export_missing_data_table(
             missing_data_records, trial_count_records, table_path
         )
