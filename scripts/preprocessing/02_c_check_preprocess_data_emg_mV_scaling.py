@@ -2,7 +2,7 @@
 check_emg_amplitudes.py
 =======================
 Prueft alle preprocessed Trial-CSVs auf ungewoehnliche EMG-Amplituden.
-Laeuft NACH 02_preprocess_emg.py auf dem preprocessed_emg_data-Ordner.
+Laeuft NACH 02_preprocess_emg.py auf dem 03_preprocessed_emg_data-Ordner.
 
 Erkennt EMG-Spalten anhand des Namens-Praefixes: L_ oder R_
 (z.B. L_Vastus Lateralis, R_Biceps Femoris).
@@ -25,7 +25,7 @@ import numpy as np
 # PFADE – anpassen!
 # ============================================================
 SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data\emg_amplitude_check.xlsx")
+REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data\emg_amplitude_check.xlsx")
 
 # Bekannte Sonderfälle – werden separat markiert, nicht als Fehler gewertet
 KNOWN_SPECIAL = {"S08", "S09", "S11"}
