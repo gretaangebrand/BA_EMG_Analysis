@@ -30,8 +30,8 @@ import numpy as np
 # PFADE – anpassen!
 # ============================================================
 # Rohdaten prüfen
-SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\emg_amplitude_check.xlsx")
+SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data")
+REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data\emg_amplitude_check.xlsx")
 
 # Bekannte Sonderfälle (bereits korrekt behandelt in 02_preprocess_emg.py)
 KNOWN_SPECIAL = {"S08"}

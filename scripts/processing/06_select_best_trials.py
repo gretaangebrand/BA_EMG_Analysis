@@ -22,8 +22,8 @@ import matplotlib.ticker as ticker
 # ============================================================
 # PFADE
 # ============================================================
-DATA_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
-OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\best_trial_selection")
+DATA_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
+OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\05_best_trials_group_and_individual")
 
 
 # ============================================================
@@ -361,9 +361,14 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
         axes = [axes]
 
     phase_colors = {"PER": "#4472C4", "OVU": "#ED7D31", "LUT": "#70AD47"}
+    phase_order  = ["PER", "OVU", "LUT"]
 
     for ax, ex_name in zip(axes, exercises):
         sub = df_group[df_group["Übung"] == ex_name]
+        # Sortierung nach phase_order erzwingen
+        sub = sub.set_index("Phase").reindex(phase_order).reset_index()
+        sub = sub.dropna(subset=["Mittelwert"])
+
         phases = sub["Phase"].values
         means  = sub["Mittelwert"].values
         sds    = sub["SD"].values

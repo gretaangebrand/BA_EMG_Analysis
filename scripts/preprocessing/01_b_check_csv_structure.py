@@ -1,143 +1,235 @@
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 # ============================================================
-# PFAD ZUR TESTDATEI
+# PFAD ZUM PREPROCESSED-ORDNER
 # ============================================================
 
-file_path = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\Daten_BA\anonymized_csv_data\01_PER\CMJ\S01_01_PER_CMJ.csv")
+DATA_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\preprocessed_emg_data")
 
 
 # ============================================================
-# CSV EINLESEN
+# EINSTELLUNGEN
 # ============================================================
 
-# Bei deinen Dateien ist sehr wahrscheinlich Tab als Trennzeichen richtig.
-# Falls es nicht funktioniert, kann man später auf sep="," umstellen.
-df = pd.read_csv(file_path, sep="\t", header=[0, 1, 2, 3, 4])
+PHASES = ["01_PER", "02_OVU", "03_LUT"]
 
-print("=" * 70)
-print("DATEI EINGELESEN")
-print("=" * 70)
-print(f"Datei: {file_path.name}")
-print(f"Shape: {df.shape}")
-print()
 
 # ============================================================
-# HEADER-EBENEN KURZ ANZEIGEN
+# ALLE SUBJECTS UND DATEIEN PRÜFEN
 # ============================================================
 
-print("=" * 70)
-print("HEADER-EBENEN BEISPIEL")
-print("=" * 70)
+def check_emg_file(filepath: Path) -> dict:
+    """Prüft eine einzelne _emg.csv Datei und gibt eine Zusammenfassung zurück."""
+    df = pd.read_csv(filepath, low_memory=False)
 
-for i, col in enumerate(df.columns[:10]):
-    print(f"Spalte {i+1}: {col}")
+    # Spaltentypen klassifizieren
+    event_cols  = [c for c in df.columns if c.startswith("event_")]
+    scalar_cols = [c for c in df.columns if c != "time_s"
+                   and not c.startswith("event_")
+                   and not c.startswith("L_")
+                   and not c.startswith("R_")]
+    emg_cols    = [c for c in df.columns if c.startswith("L_") or c.startswith("R_")]
+    l_cols      = [c for c in emg_cols if c.startswith("L_")]
+    r_cols      = [c for c in emg_cols if c.startswith("R_")]
 
-print()
+    # Muskelnamen extrahieren
+    muscles_l = sorted(set(c.replace("L_", "") for c in l_cols))
+    muscles_r = sorted(set(c.replace("R_", "") for c in r_cols))
 
-# ============================================================
-# TRIALS ERKENNEN
-# ============================================================
+    # Events lesen (nur Zeile 0)
+    events = {}
+    for c in event_cols:
+        val = pd.to_numeric(df[c].iloc[0], errors="coerce")
+        if pd.notna(val):
+            events[c] = val
 
-trial_names = pd.Index(df.columns.get_level_values(0)).dropna().unique()
+    # Scalars lesen (nur Zeile 0)
+    scalars = {}
+    for c in scalar_cols:
+        val = pd.to_numeric(df[c].iloc[0], errors="coerce")
+        if pd.notna(val):
+            scalars[c] = val
 
-print("=" * 70)
-print("GEFUNDENE TRIALS")
-print("=" * 70)
+    # Sampling-Rate schätzen
+    if "time_s" in df.columns and len(df) > 1:
+        dt = df["time_s"].diff().median()
+        fs = round(1.0 / dt) if dt > 0 else 0
+    else:
+        fs = 0
 
-for i, trial in enumerate(trial_names, start=1):
-    print(f"{i}: {trial}")
+    # EMG-Amplituden prüfen (Wertebereich → Einheit OK?)
+    emg_max = {}
+    for c in emg_cols:
+        vals = pd.to_numeric(df[c], errors="coerce").dropna()
+        if len(vals) > 0:
+            emg_max[c] = vals.abs().max()
 
-print()
+    return {
+        "file": filepath.name,
+        "n_rows": len(df),
+        "n_cols": len(df.columns),
+        "fs_hz": fs,
+        "time_range": (df["time_s"].iloc[0], df["time_s"].iloc[-1]) if "time_s" in df.columns else (0, 0),
+        "events": events,
+        "scalars": scalars,
+        "emg_cols": emg_cols,
+        "muscles_l": muscles_l,
+        "muscles_r": muscles_r,
+        "emg_max": emg_max,
+    }
 
-# ============================================================
-# EMG-SPALTEN ERKENNEN
-# Annahme: Ebene 2 enthält Signaltyp, 'ANALOG' = EMG
-# ============================================================
 
-signal_type_level = 2
-variable_name_level = 1
-trial_level = 0
+def check_kin_file(filepath: Path) -> dict:
+    """Prüft eine einzelne _kin.csv Datei und gibt eine Zusammenfassung zurück."""
+    df = pd.read_csv(filepath, low_memory=False)
 
-emg_mask = df.columns.get_level_values(signal_type_level).astype(str).str.upper() == "ANALOG"
-emg_df = df.loc[:, emg_mask]
+    event_cols  = [c for c in df.columns if c.startswith("event_")]
+    kin_cols    = [c for c in df.columns if c != "time_s"
+                  and not c.startswith("event_")
+                  and not c.startswith("L_") and not c.startswith("R_")]
+    # Kinematik-Spalten mit L/R Prefix
+    lr_cols     = [c for c in df.columns if (c.startswith("Left ") or c.startswith("Right "))]
+    all_kin     = kin_cols + lr_cols
 
-print("=" * 70)
-print("EMG-SPALTEN")
-print("=" * 70)
-print(f"Anzahl EMG-Spalten insgesamt: {emg_df.shape[1]}")
-print()
+    # Sampling-Rate
+    if "time_s" in df.columns and len(df) > 1:
+        dt = df["time_s"].diff().median()
+        fs = round(1.0 / dt) if dt > 0 else 0
+    else:
+        fs = 0
 
-if emg_df.shape[1] == 0:
-    print("Keine EMG-Spalten erkannt.")
-else:
-    # Muskelnamen aus Ebene 1
-    muscle_names = pd.Index(emg_df.columns.get_level_values(variable_name_level)).dropna().unique()
+    return {
+        "file": filepath.name,
+        "n_rows": len(df),
+        "fs_hz": fs,
+        "n_kin_cols": len(all_kin),
+        "kin_cols_sample": all_kin[:10],
+    }
 
-    print("Gefundene Muskelnamen:")
-    for muscle in muscle_names:
-        print(f"- {muscle}")
-
-print()
-
-# ============================================================
-# EMG-SPALTEN NACH TRIAL AUFLISTEN
-# ============================================================
-
-print("=" * 70)
-print("EMG-SPALTEN PRO TRIAL")
-print("=" * 70)
-
-if emg_df.shape[1] > 0:
-    for trial in pd.Index(emg_df.columns.get_level_values(trial_level)).dropna().unique():
-        trial_mask = emg_df.columns.get_level_values(trial_level) == trial
-        trial_emg = emg_df.loc[:, trial_mask]
-
-        muscles_this_trial = pd.Index(
-            trial_emg.columns.get_level_values(variable_name_level)
-        ).dropna().unique()
-
-        print(f"\nTrial: {trial}")
-        print(f"  Anzahl EMG-Spalten: {trial_emg.shape[1]}")
-        print(f"  Muskeln:")
-        for muscle in muscles_this_trial:
-            print(f"   - {muscle}")
-
-print()
-
-# ============================================================
-# PRÜFEN, OB UNNAMED/SPASS-SPALTEN DABEI SIND
-# ============================================================
-
-print("=" * 70)
-print("PRÜFUNG AUF UNNAMED-/LEERE HEADER")
-print("=" * 70)
-
-problem_cols = []
-for col in df.columns:
-    col_as_text = [str(x).strip() for x in col]
-    if any("Unnamed" in x for x in col_as_text) or any(x == "" for x in col_as_text):
-        problem_cols.append(col)
-
-print(f"Anzahl problematischer Header-Spalten: {len(problem_cols)}")
-
-if problem_cols:
-    print("Beispiele:")
-    for col in problem_cols[:10]:
-        print(col)
-
-print()
 
 # ============================================================
-# ERSTE DATENZEILEN DER EMG-DATEN ZEIGEN
+# HAUPTFUNKTION
 # ============================================================
 
-print("=" * 70)
-print("ERSTE ZEILEN DER EMG-DATEN")
-print("=" * 70)
+def main():
+    print("=" * 70)
+    print("01_b_check_csv_structure.py  –  Preprocessed Dateien prüfen")
+    print("=" * 70)
 
-if emg_df.shape[1] > 0:
-    print(emg_df.head())
-else:
-    print("Keine EMG-Daten zum Anzeigen gefunden.")
+    if not DATA_DIR.exists():
+        print(f"[FEHLER] DATA_DIR nicht gefunden:\n  {DATA_DIR}")
+        return
+
+    subjects = sorted([d.name for d in DATA_DIR.iterdir() if d.is_dir()])
+    print(f"\nGefundene Subjects: {len(subjects)}")
+    print(f"  {', '.join(subjects)}\n")
+
+    total_emg = 0
+    total_kin = 0
+    issues    = []
+
+    for subject in subjects:
+        print(f"\n{'─'*70}")
+        print(f"{subject}")
+        print(f"{'─'*70}")
+
+        subject_dir = DATA_DIR / subject
+
+        for phase in PHASES:
+            phase_dir = subject_dir / phase
+            if not phase_dir.exists():
+                print(f"  {phase}: Ordner fehlt")
+                continue
+
+            # Alle Übungsordner durchgehen
+            for ex_dir in sorted(phase_dir.iterdir()):
+                if not ex_dir.is_dir():
+                    continue
+                for side_dir in sorted(ex_dir.iterdir()):
+                    if not side_dir.is_dir():
+                        continue
+
+                    exercise = ex_dir.name
+                    side     = side_dir.name
+
+                    emg_files = sorted(side_dir.glob("*_emg.csv"))
+                    kin_files = sorted(side_dir.glob("*_kin.csv"))
+
+                    if not emg_files and not kin_files:
+                        continue
+
+                    print(f"\n  {phase} / {exercise} / {side}:")
+                    print(f"    EMG-Dateien: {len(emg_files)}  |  KIN-Dateien: {len(kin_files)}")
+
+                    # EMG-Dateien prüfen
+                    for ef in emg_files:
+                        total_emg += 1
+                        info = check_emg_file(ef)
+
+                        t0, t1 = info["time_range"]
+                        duration = t1 - t0
+
+                        print(f"\n    📄 {info['file']}")
+                        print(f"       Zeilen: {info['n_rows']:,}  |  "
+                              f"fs: {info['fs_hz']} Hz  |  "
+                              f"Dauer: {duration:.3f} s  |  "
+                              f"t: {t0:.3f}–{t1:.3f} s")
+                        print(f"       EMG-Kanäle: {len(info['emg_cols'])}  "
+                              f"(L: {len(info['muscles_l'])}, R: {len(info['muscles_r'])})")
+                        print(f"       Muskeln R: {', '.join(info['muscles_r'])}")
+
+                        # Events
+                        if info["events"]:
+                            evt_str = ", ".join(f"{k.replace('event_','').replace('_s','')}="
+                                                f"{v:.3f}s" for k, v in info["events"].items())
+                            print(f"       Events: {evt_str}")
+                        else:
+                            print(f"       Events: keine")
+
+                        # Scalars
+                        if info["scalars"]:
+                            sc_str = ", ".join(f"{k}={v:.4f}" for k, v in info["scalars"].items())
+                            print(f"       Scalars: {sc_str}")
+
+                        # Einheiten-Check: EMG sollte im µV-Bereich sein (1–500 µV typisch)
+                        for col, maxval in info["emg_max"].items():
+                            if maxval < 0.01:
+                                issues.append(f"{subject}/{phase}/{exercise}/{side}/{info['file']}: "
+                                              f"{col} max={maxval:.6f} → evtl. noch in Volt?")
+                            elif maxval > 10000:
+                                issues.append(f"{subject}/{phase}/{exercise}/{side}/{info['file']}: "
+                                              f"{col} max={maxval:.1f} → ungewöhnlich hoch")
+
+                    # KIN-Dateien prüfen (kurzfassung)
+                    for kf in kin_files:
+                        total_kin += 1
+                        kinfo = check_kin_file(kf)
+                        print(f"\n    📄 {kinfo['file']}")
+                        print(f"       Zeilen: {kinfo['n_rows']:,}  |  "
+                              f"fs: {kinfo['fs_hz']} Hz  |  "
+                              f"Kin-Spalten: {kinfo['n_kin_cols']}")
+                        if kinfo["kin_cols_sample"]:
+                            print(f"       Beispiele: {', '.join(kinfo['kin_cols_sample'][:5])}")
+
+    # ── Zusammenfassung ────────────────────────────────────────────────────
+    print(f"\n{'='*70}")
+    print("ZUSAMMENFASSUNG")
+    print(f"{'='*70}")
+    print(f"  Subjects           : {len(subjects)}")
+    print(f"  EMG-Dateien geprüft: {total_emg}")
+    print(f"  KIN-Dateien geprüft: {total_kin}")
+
+    if issues:
+        print(f"\n  ⚠️  MÖGLICHE PROBLEME ({len(issues)}):")
+        for iss in issues:
+            print(f"    - {iss}")
+    else:
+        print(f"\n  ✅ Keine Auffälligkeiten gefunden.")
+
+    print(f"{'='*70}")
+
+
+if __name__ == "__main__":
+    main()

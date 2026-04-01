@@ -14,14 +14,14 @@ from scripts.utils.helpers import (
 # PFADE
 # ============================================================
 # Hauptordner
-SOURCE_FOLDER = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\raw_data")
+SOURCE_FOLDER = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\01_raw_data")
 # Unterordner
 emg_original_path = SOURCE_FOLDER / "_EMG_ORIGINAL"
 emg_raw_path = SOURCE_FOLDER / "_EMG_RAW"
 SOURCE_FOLDERS = [emg_original_path, emg_raw_path]
 
 # Outputordner
-OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\anonymized_csv_data")
+OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data")
 
 
 def ensure_output_folder(base_output: Path, phase: str, movement: str) -> Path:
