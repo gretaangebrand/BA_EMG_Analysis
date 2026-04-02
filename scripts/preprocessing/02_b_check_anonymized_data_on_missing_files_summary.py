@@ -87,6 +87,11 @@ TARGET_EXERCISES = [
     "Squatting session_3",
 ]
 
+# Laut Studienprotokoll werden pro Subject × Phase × Uebung × Seite
+# immer 3 gueltige Trials erwartet. Wenn die Metadata weniger als 3
+# listet, wurden weniger aufgenommen -> trotzdem als fehlend zaehlen.
+EXPECTED_TRIALS_PER_COMBINATION = 3
+
 
 # ============================================================
 # HILFSFUNKTIONEN
@@ -230,13 +235,22 @@ def find_missing_trials(
     """
     Vergleicht erwartete vs. vorhandene Trials und gibt eine Tabelle
     der Differenzen zurueck (nur wo Trials fehlen).
+
+    Die Erwartung ist mindestens EXPECTED_TRIALS_PER_COMBINATION (= 3 laut
+    Studienprotokoll). Wenn die Metadata weniger listet, wird trotzdem
+    3 als Soll verwendet — es wurden dann weniger aufgenommen als geplant.
     """
-    # Erwartete Trials pro Gruppe zaehlen
+    # Erwartete Trials pro Gruppe zaehlen (laut Metadata)
     expected_counts = (
         df_expected
         .groupby(["subject_id", "phase", "exercise", "side"])
         .size()
-        .reset_index(name="erwartet")
+        .reset_index(name="laut_metadata")
+    )
+
+    # Soll-Wert: Maximum aus Metadata und Studienprotokoll
+    expected_counts["erwartet"] = expected_counts["laut_metadata"].clip(
+        lower=EXPECTED_TRIALS_PER_COMBINATION
     )
 
     # Vorhandene Trials pro Gruppe zaehlen
@@ -260,6 +274,13 @@ def find_missing_trials(
     )
     merged["vorhanden"] = merged["vorhanden"].fillna(0).astype(int)
     merged["fehlend"]   = merged["erwartet"] - merged["vorhanden"]
+
+    # Grund fuer das Fehlen: nicht aufgenommen vs. nicht verarbeitet
+    merged["grund"] = np.where(
+        merged["laut_metadata"] < EXPECTED_TRIALS_PER_COMBINATION,
+        "weniger aufgenommen",
+        "nicht verarbeitet",
+    )
 
     # Nur Zeilen mit fehlenden Trials
     missing = merged[merged["fehlend"] > 0].copy()
@@ -318,13 +339,13 @@ def main():
         print("\n[OK] Keine fehlenden Trials bei BILATERAL/RIGHT.")
     else:
         print(f"\n[!] {total_missing_relevant} fehlende Trials bei BILATERAL/RIGHT:")
-        print(f"    (= Trials die laut Metadata aufgenommen wurden, aber nicht im")
-        print(f"     preprocessed-Ordner vorhanden sind)\n")
+        print(f"    (Soll = {EXPECTED_TRIALS_PER_COMBINATION} Trials pro Kombination laut Studienprotokoll)\n")
         for _, row in df_missing_relevant.iterrows():
             print(f"    {row['subject_id']:5s} | {row['phase_label']:4s} | "
                   f"{row['exercise']:4s} | {row['side']:10s} | "
-                  f"erwartet: {row['erwartet']}  vorhanden: {row['vorhanden']}  "
-                  f"fehlend: {row['fehlend']}")
+                  f"soll: {row['erwartet']}  metadata: {row['laut_metadata']}  "
+                  f"vorhanden: {row['vorhanden']}  fehlend: {row['fehlend']}  "
+                  f"({row['grund']})")
 
     if not df_missing_left.empty:
         print(f"\n[i] Zusaetzlich {total_missing_left} fehlende Trials bei LEFT "
@@ -335,7 +356,10 @@ def main():
         df_expected
         .groupby(["subject_id", "phase", "exercise", "side"])
         .size()
-        .reset_index(name="erwartet")
+        .reset_index(name="laut_metadata")
+    )
+    all_counts["erwartet"] = all_counts["laut_metadata"].clip(
+        lower=EXPECTED_TRIALS_PER_COMBINATION
     )
     if not df_actual.empty:
         act = (
@@ -351,6 +375,11 @@ def main():
     all_counts["fehlend"] = all_counts["erwartet"] - all_counts["vorhanden"]
     all_counts["phase_label"] = all_counts["phase"].map(PHASE_LABELS)
     all_counts["vollstaendig"] = np.where(all_counts["fehlend"] == 0, "✓", "✗")
+    all_counts["grund"] = np.where(
+        all_counts["laut_metadata"] < EXPECTED_TRIALS_PER_COMBINATION,
+        "weniger aufgenommen",
+        np.where(all_counts["fehlend"] > 0, "nicht verarbeitet", ""),
+    )
 
     # 6) Excel-Bericht -> Pipeline_Reports.xlsx
     summary = pd.DataFrame([{
@@ -363,9 +392,10 @@ def main():
 
     overview = all_counts[
         ["subject_id", "phase_label", "exercise", "side",
-         "erwartet", "vorhanden", "fehlend", "vollstaendig"]
+         "laut_metadata", "erwartet", "vorhanden", "fehlend", "vollstaendig", "grund"]
     ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
-                      "exercise": "Uebung", "side": "Seite"})
+                      "exercise": "Uebung", "side": "Seite",
+                      "laut_metadata": "in_Metadata", "grund": "Grund"})
     overview = overview.sort_values(["Subject","Uebung","Phase","Seite"])
 
     sheets = {
@@ -376,17 +406,19 @@ def main():
     if not df_missing_relevant.empty:
         out = df_missing_relevant[
             ["subject_id", "phase_label", "exercise", "side",
-             "erwartet", "vorhanden", "fehlend"]
+             "laut_metadata", "erwartet", "vorhanden", "fehlend", "grund"]
         ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
-                          "exercise": "Uebung", "side": "Seite"})
+                          "exercise": "Uebung", "side": "Seite",
+                          "laut_metadata": "in_Metadata", "grund": "Grund"})
         sheets["02b_Fehlende_BIL_RIGHT"] = out
 
     if not df_missing_left.empty:
         out_left = df_missing_left[
             ["subject_id", "phase_label", "exercise", "side",
-             "erwartet", "vorhanden", "fehlend"]
+             "laut_metadata", "erwartet", "vorhanden", "fehlend", "grund"]
         ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
-                          "exercise": "Uebung", "side": "Seite"})
+                          "exercise": "Uebung", "side": "Seite",
+                          "laut_metadata": "in_Metadata", "grund": "Grund"})
         sheets["02b_Fehlende_LEFT"] = out_left
 
     _save_to_pipeline_report(sheets)
