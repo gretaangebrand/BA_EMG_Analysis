@@ -47,6 +47,22 @@ EXERCISE_CONFIGS = [
      "label": "SQ einbeinig R"},
 ]
 
+# Ausschluss von Trial in S07 wegen implausibiler Werte.
+# Format: (Subject, Übungs-Label, Trial-Name-Teilstring)
+# Begründung wird als Kommentar dokumentiert.
+EXCLUDED_TRIALS = [
+    # S07, CMJ bilateral, Trial 02: Jumpheight 0.768 m – unrealistisch hoch, muss einen Messfehler gegeben haben
+    ("S07", "CMJ bilateral", "CMJ_02"),
+]
+
+
+def _is_excluded(subject: str, label: str, trial_name: str) -> bool:
+    """Prüft, ob ein Trial in der Ausschlussliste steht."""
+    for ex_subj, ex_label, ex_trial in EXCLUDED_TRIALS:
+        if subject == ex_subj and label == ex_label and ex_trial in trial_name:
+            return True
+    return False
+
 
 # ============================================================
 # HILFSFUNKTIONEN
@@ -75,7 +91,7 @@ def get_max_knee_angle(kin_path: Path) -> float:
 
     df = pd.read_csv(kin_path, low_memory=False)
 
-    # Spalte finden: 'Right Knee Angles' (ohne _Y / _Z Suffix)
+    # Spalte finden: 'Right Knee Angles' (ohne _Y / _Z Suffix), da das die Extension/Flexion Spalte ist
     kin_col = None
     for c in df.columns:
         if c == "Right Knee Angles":
@@ -182,8 +198,14 @@ def main():
                         "Einheit":  unit,
                         "Methode":  method,
                     }
-                    trials_info.append(info)
                     all_records.append(info)
+
+                    if _is_excluded(subject, label, trial_name):
+                        print(f"  [AUSSCHLUSS] {subject} | {label} | {trial_name} "
+                              f"| Wert={value} {unit} – aus Selektion ausgeschlossen")
+                        continue
+
+                    trials_info.append(info)
 
                 # Besten Trial auswählen
                 if method == "jumpheight":
