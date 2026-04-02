@@ -1,12 +1,11 @@
 """
-06_select_best_trials.py
+05_select_best_trials.py
 ========================
 Bestimmt den besten Trial pro Subject, Phase und Übung.
 
 Kriterien:
   - CMJ / DJ:  Höchste Sprunghöhe (Jumpheight aus Scalar-Metadaten)
-  - SQ RIGHT:  Nächster Kniewinkel zu 60° (aus Right Knee Angles in _kin.csv).
-               Bei gleicher Distanz wird der Trial bevorzugt, der ≥ 60° erreicht.
+  - SQ RIGHT:  Größter maximaler Kniewinkel (tiefster Squat) aus Right Knee Angles in _kin.csv.
 
 Liest die preprocessed *_emg.csv und *_kin.csv Dateien.
 Gibt eine Übersichtstabelle als PDF und CSV aus (individuell + Gruppenmittelwert).
@@ -47,9 +46,6 @@ EXERCISE_CONFIGS = [
     {"exercise": "SQ",  "side": "RIGHT",     "method": "knee_angle",
      "label": "SQ einbeinig R"},
 ]
-
-# Ziel-Kniewinkel für Squats
-SQ_TARGET_ANGLE = 60.0   # Grad
 
 
 # ============================================================
@@ -96,10 +92,9 @@ def get_max_knee_angle(kin_path: Path) -> float:
     return float(vals.max())
 
 
-def select_best_sq(trials: list[dict], target: float = SQ_TARGET_ANGLE) -> dict | None:
+def select_best_sq(trials: list[dict]) -> dict | None:
     """
-    Wählt den besten Squat-Trial: nächster max. Kniewinkel zu target.
-    Bei gleicher Distanz wird der Trial bevorzugt, der ≥ target ist.
+    Wählt den besten Squat-Trial: größter maximaler Kniewinkel (= tiefster Squat).
     """
     if not trials:
         return None
@@ -108,14 +103,7 @@ def select_best_sq(trials: list[dict], target: float = SQ_TARGET_ANGLE) -> dict 
     if not valid:
         return None
 
-    def sort_key(t):
-        angle = t["value"]
-        dist  = abs(angle - target)
-        # Bei gleicher Distanz: >= target bevorzugt (penalty = 0), < target bestraft (penalty = 1)
-        penalty = 0 if angle >= target else 1
-        return (dist, penalty)
-
-    return min(valid, key=sort_key)
+    return max(valid, key=lambda t: t["value"])
 
 
 def select_best_jump(trials: list[dict]) -> dict | None:
@@ -136,7 +124,7 @@ def select_best_jump(trials: list[dict]) -> dict | None:
 
 def main():
     print("=" * 70)
-    print("06_select_best_trials.py  –  Beste Trials auswählen")
+    print("05_select_best_trials.py  –  Beste Trials auswählen")
     print("=" * 70)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -267,12 +255,8 @@ def main():
     print("INDIVIDUELLE BESTE TRIALS")
     print(f"{'='*70}")
     for _, row in df_best.iterrows():
-        marker = ""
-        if row["Einheit"] == "°":
-            diff = row["Wert"] - SQ_TARGET_ANGLE
-            marker = f" (Δ={diff:+.1f}° zu {SQ_TARGET_ANGLE}°)"
         print(f"  {row['Subject']:5s} | {row['Übung']:22s} | {row['Phase']:4s} | "
-              f"{row['Bester Trial']:15s} | {row['Wert']:7.3f} {row['Einheit']}{marker}")
+              f"{row['Bester Trial']:15s} | {row['Wert']:7.3f} {row['Einheit']}")
 
     # ── PDF: Übersichtstabelle ─────────────────────────────────────────────
     _create_overview_pdf(df_best, df_group, OUTPUT_DIR / "beste_trials_uebersicht.pdf")
@@ -435,12 +419,6 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
             ax.hlines(mean_val, p_idx - 0.3, p_idx + 0.3,
                       color=phase_colors.get(phase, "gray"),
                       linewidth=2.5, zorder=4)
-
-        # Zielwert-Linie für Squats
-        if "SQ" in ex_name:
-            ax.axhline(SQ_TARGET_ANGLE, color="red", ls="--", lw=1.0,
-                       alpha=0.6, label=f"Ziel: {SQ_TARGET_ANGLE}°")
-            ax.legend(fontsize=9)
 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order)
