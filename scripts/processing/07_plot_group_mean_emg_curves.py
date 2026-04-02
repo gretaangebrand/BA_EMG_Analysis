@@ -66,6 +66,29 @@ EXERCISE_MAP = {
 
 N_POINTS = 101  # 0–100 %
 
+# ── Darstellungsoptionen ──────────────────────────────────────
+SHOW_SD = False   # auf True oder False setzen, um die SD-Bänder ein- oder eben auszublenden
+
+# ── Pfad zu den preprocessed Daten (für KIN-Events) ──────────
+PREPROCESSED_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
+
+# ── Event-Konfiguration pro Übungstyp ─────────────────────────
+# Jedes Event: (event_start_col, event_time_col, label, farbe, linestyle)
+EVENT_CONFIG = {
+    "CMJ": [
+        ("event_start_s",    "Start",     "#888888", ":"),
+        ("event_take_off_s", "Take-off",  "#2196F3", "-"),
+        ("event_landing_s",  "Landing",   "#FF5722", "-"),
+        ("event_end_jump_s", "End",       "#888888", ":"),
+    ],
+    "DJ": [
+        ("event_landing1_s", "Landing 1", "#FF5722", "-"),
+        ("event_take_off_s", "Take-off",  "#2196F3", "-"),
+        ("event_landing2_s", "Landing 2", "#FF5722", "--"),
+        ("event_end_jump_s", "End",       "#888888", ":"),
+    ],
+}
+
 
 # ============================================================
 # HILFSFUNKTIONEN
@@ -84,14 +107,80 @@ def find_processed_file(subject, phase_key, ex_folder, side_folder, trial_name):
     return None
 
 
+def find_kin_file(subject, phase_key, ex_folder, side_folder, trial_name):
+    """Findet die _kin.csv fuer Event-Zeitpunkte."""
+    trial_dir = PREPROCESSED_DIR / subject / phase_key / ex_folder / side_folder
+    if not trial_dir.exists():
+        return None
+    exact = trial_dir / f"{trial_name}_kin.csv"
+    if exact.exists():
+        return exact
+    for f in trial_dir.glob("*_kin.csv"):
+        if trial_name in f.stem:
+            return f
+    return None
+
+
+def get_event_pct(kin_path, exercise_label):
+    """
+    Berechnet die prozentualen Positionen der Events im Bewegungszyklus.
+    Gibt eine Liste von (pct, label, color, linestyle) zurueck.
+    """
+    try:
+        kin = pd.read_csv(kin_path, nrows=1, low_memory=False)
+    except Exception:
+        return []
+
+    # Übungstyp bestimmen (CMJ oder DJ)
+    ex_type = None
+    for key in EVENT_CONFIG:
+        if key in exercise_label:
+            ex_type = key
+            break
+    if ex_type is None:
+        return []
+
+    events_cfg = EVENT_CONFIG[ex_type]
+
+    # Alle Event-Zeiten lesen
+    event_times = {}
+    for col_name, label, color, ls in events_cfg:
+        if col_name in kin.columns:
+            val = pd.to_numeric(kin[col_name].iloc[0], errors="coerce")
+            if pd.notna(val):
+                event_times[col_name] = (float(val), label, color, ls)
+
+    if len(event_times) < 2:
+        return []
+
+    # Gesamtdauer: erstes bis letztes Event
+    all_times = [v[0] for v in event_times.values()]
+    t_start = min(all_times)
+    t_end = max(all_times)
+    duration = t_end - t_start
+
+    if duration <= 0:
+        return []
+
+    # Prozentuale Position berechnen
+    result = []
+    for col_name, (t, label, color, ls) in event_times.items():
+        pct_pos = ((t - t_start) / duration) * 100
+        result.append((pct_pos, label, color, ls))
+
+    return result
+
+
 def collect_curves(df_best):
     """
     Sammelt die zeitnormalisierten EMG-Kurven der besten Trials.
 
     Returns:
-        dict: { exercise_label: { phase_short: { muscle: [array, ...] } } }
+        curves: { exercise_label: { phase_short: { muscle: [array, ...] } } }
+        events: { exercise_label: { phase_short: [ [(pct, label, color, ls), ...], ... ] } }
     """
     data = {}
+    event_data = {}
 
     for _, row in df_best.iterrows():
         subject     = row["Subject"]
@@ -120,8 +209,10 @@ def collect_curves(df_best):
 
         if label not in data:
             data[label] = {}
+            event_data[label] = {}
         if phase_short not in data[label]:
             data[label][phase_short] = {m: [] for m in MUSCLE_NAMES}
+            event_data[label][phase_short] = []
 
         for muscle in MUSCLE_NAMES:
             col = f"{SIDE}_{muscle}"
@@ -130,14 +221,63 @@ def collect_curves(df_best):
                 if len(vals) == N_POINTS:
                     data[label][phase_short][muscle].append(vals)
 
-    return data
+        # Events aus KIN-Datei sammeln
+        kin_path = find_kin_file(
+            subject, phase_key, ex_folder, side_folder, trial_name
+        )
+        if kin_path is not None:
+            evts = get_event_pct(kin_path, label)
+            if evts:
+                event_data[label][phase_short].append(evts)
+
+    return data, event_data
+
+
+def draw_event_lines(ax, event_lists, add_label=True):
+    """
+    Zeichnet gemittelte Event-Linien in einen Subplot.
+    event_lists: Liste von Event-Listen (eine pro Probandin).
+    Mittelt die prozentualen Positionen über alle Probandinnen.
+    """
+    if not event_lists:
+        return []
+
+    # Events nach Label gruppieren und mitteln
+    from collections import defaultdict
+    grouped = defaultdict(lambda: {"pcts": [], "color": "", "ls": ""})
+    for trial_events in event_lists:
+        for pct_pos, label, color, ls in trial_events:
+            grouped[label]["pcts"].append(pct_pos)
+            grouped[label]["color"] = color
+            grouped[label]["ls"] = ls
+
+    handles = []
+    for label, info in grouped.items():
+        mean_pct = np.mean(info["pcts"])
+        # Start und End nicht zeichnen (liegen bei 0% und 100%)
+        if mean_pct < 1 or mean_pct > 99:
+            continue
+        line = ax.axvline(
+            x=mean_pct, color=info["color"], linewidth=1.2,
+            linestyle=info["ls"], alpha=0.7, zorder=1,
+        )
+        if add_label:
+            ax.text(
+                mean_pct, ax.get_ylim()[1] if ax.get_ylim()[1] > 0 else 100,
+                f" {label}", fontsize=6, color=info["color"],
+                rotation=90, va="top", ha="left", alpha=0.8,
+            )
+            handles.append(Line2D([0], [0], color=info["color"],
+                                  linewidth=1.2, linestyle=info["ls"],
+                                  alpha=0.7, label=label))
+    return handles
 
 
 # ============================================================
 # PLOT 1: Alle Muskeln überlagert, getrennt nach Phase
 # ============================================================
 
-def plot_all_muscles_by_phase(curves, out_dir):
+def plot_all_muscles_by_phase(curves, events, out_dir):
     """
     Pro Übung: 1 Zeile × 3 Spalten (PER | OVU | LUT).
     Alle 5 Muskeln überlagert in jedem Subplot.
@@ -147,6 +287,7 @@ def plot_all_muscles_by_phase(curves, out_dir):
 
     for exercise, phase_data in sorted(curves.items()):
         fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
+        event_handles = []
 
         for col_idx, phase in enumerate(phase_order):
             ax = axes[col_idx]
@@ -164,13 +305,21 @@ def plot_all_muscles_by_phase(curves, out_dir):
 
                 color = MUSCLE_COLORS[muscle]
 
-                ax.fill_between(pct, mean - sd, mean + sd,
-                                color=color, alpha=0.15)
+                if SHOW_SD:
+                    ax.fill_between(pct, mean - sd, mean + sd,
+                                    color=color, alpha=0.15)
                 ax.plot(pct, mean, color=color, linewidth=2.0,
                         label=muscle)
 
             ax.axhline(y=100, color="black", linewidth=0.6,
                        linestyle="--", alpha=0.4)
+
+            # Event-Linien zeichnen
+            evt_lists = events.get(exercise, {}).get(phase, [])
+            if evt_lists:
+                eh = draw_event_lines(ax, evt_lists, add_label=(col_idx == 0))
+                if col_idx == 0:
+                    event_handles = eh
 
             ax.set_title(
                 f"{PHASE_LABELS.get(PHASE_REVERSE.get(phase, ''), phase)} "
@@ -192,6 +341,11 @@ def plot_all_muscles_by_phase(curves, out_dir):
         handles.append(baseline_handle)
         labels.append("100 % BL")
 
+        # Event-Handles hinzufuegen
+        for eh in event_handles:
+            handles.append(eh)
+            labels.append(eh.get_label())
+
         fig.legend(handles, labels, loc="lower center",
                    ncol=len(handles), fontsize=9, framealpha=0.9,
                    bbox_to_anchor=(0.5, -0.02))
@@ -202,7 +356,7 @@ def plot_all_muscles_by_phase(curves, out_dir):
         )
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
-        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_by_phase.pdf"
+        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_by_phase.svg"
         fig.savefig(out_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         print(f"  -> {out_path.name}")
@@ -212,7 +366,7 @@ def plot_all_muscles_by_phase(curves, out_dir):
 # PLOT 2: Phasen überlagert, getrennt nach Muskel
 # ============================================================
 
-def plot_phases_overlay_by_muscle(curves, out_dir):
+def plot_phases_overlay_by_muscle(curves, events, out_dir):
     """
     Pro Übung: 5 Zeilen (Muskeln) × 1 Spalte.
     Alle 3 Phasen überlagert in jedem Subplot.
@@ -241,10 +395,21 @@ def plot_phases_overlay_by_muscle(curves, out_dir):
 
                 color = PHASE_COLORS[phase]
 
-                ax.fill_between(pct, mean - sd, mean + sd,
-                                color=color, alpha=0.12)
+                if SHOW_SD:
+                    ax.fill_between(pct, mean - sd, mean + sd,
+                                    color=color, alpha=0.12)
                 ax.plot(pct, mean, color=color, linewidth=2.0,
                         label=f"{phase} (n={len(arrays)})")
+
+            ax.axhline(y=100, color="black", linewidth=0.6,
+                       linestyle="--", alpha=0.4)
+
+            # Event-Linien: Mittelwert über alle Phasen
+            all_evt_lists = []
+            for phase in phase_order:
+                all_evt_lists.extend(events.get(exercise, {}).get(phase, []))
+            if all_evt_lists:
+                draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
 
             ax.axhline(y=100, color="black", linewidth=0.6,
                        linestyle="--", alpha=0.4)
@@ -264,7 +429,7 @@ def plot_phases_overlay_by_muscle(curves, out_dir):
         )
 
         plt.tight_layout(rect=[0, 0, 1, 0.97])
-        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_phase_overlay.pdf"
+        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_phase_overlay.svg"
         fig.savefig(out_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         print(f"  -> {out_path.name}")
@@ -289,7 +454,7 @@ def main():
     print(f"\nBeste Trials geladen: {len(df_best)} Eintraege")
 
     print("\nSammle EMG-Kurven der besten Trials ...")
-    curves = collect_curves(df_best)
+    curves, events = collect_curves(df_best)
 
     if not curves:
         print("[FEHLER] Keine Kurven gefunden.")
@@ -298,11 +463,14 @@ def main():
     for ex, phases in curves.items():
         for phase, muscles in phases.items():
             n = len(next(iter(muscles.values()), []))
-            print(f"  {ex:22s} | {phase:4s} | {n} Probandinnen")
+            n_evt = len(events.get(ex, {}).get(phase, []))
+            evt_info = f"  ({n_evt} mit Events)" if n_evt > 0 else ""
+            print(f"  {ex:22s} | {phase:4s} | {n} Probandinnen{evt_info}")
 
+    print(f"\nSHOW_SD = {SHOW_SD}")
     print("\nErstelle Plots ...")
-    plot_all_muscles_by_phase(curves, OUTPUT_DIR)
-    plot_phases_overlay_by_muscle(curves, OUTPUT_DIR)
+    plot_all_muscles_by_phase(curves, events, OUTPUT_DIR)
+    plot_phases_overlay_by_muscle(curves, events, OUTPUT_DIR)
 
     print(f"\n{'='*70}")
     print("FERTIG")
