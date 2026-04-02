@@ -49,8 +49,33 @@ RELEVANT_SUBJECTS = set(SUBJECT_MAP.values())
 
 # Phasen-Mapping: Sitzungsdaten werden chronologisch den Phasen zugeordnet.
 # Die Zuordnung muss pro Subject erfolgen (1. Datum = PER, 2. = OVU, 3. = LUT).
+# AUSNAHME: S08 hat 4 Termine, die nicht chronologisch den Phasen entsprechen.
 PHASE_ORDER = ["01_PER", "02_OVU", "03_LUT"]
 PHASE_LABELS = {"01_PER": "PER", "02_OVU": "OVU", "03_LUT": "LUT"}
+
+# Manuelle Phase-Zuordnung fuer Subjects, bei denen die chronologische
+# Reihenfolge nicht PER -> OVU -> LUT entspricht.
+# Format: { subject_id: { datetime.date: phase_key } }
+# Termine die hier nicht gelistet sind, werden ignoriert.
+from datetime import date
+MANUAL_PHASE_OVERRIDE = {
+    "S01": {
+        date(2024, 6,  6): "03_LUT",
+        date(2024, 6, 13): "01_PER",
+        date(2024, 7,  1): "02_OVU",
+    },
+    "S06": {
+        date(2024, 12, 13): "02_OVU",
+        date(2025,  1, 20): "01_PER",
+        date(2025,  2,  4): "03_LUT",
+    },
+    "S08": {
+        date(2025, 2, 19): "02_OVU",
+        date(2025, 2, 27): "03_LUT",
+        date(2025, 3,  6): "01_PER",
+        # 2024-11-13 wird bewusst NICHT zugeordnet -> ignoriert
+    },
+}
 
 # Exercises und deren Zuordnung
 TARGET_EXERCISES = [
@@ -94,8 +119,13 @@ def load_expected_trials(metadata_path: Path) -> pd.DataFrame:
     Laedt die c3d-Metadaten und zaehlt die erwarteten Trials
     pro Subject, Phase, Uebung, Seite.
 
-    Die Phase wird aus der chronologischen Reihenfolge der Sitzungsdaten
-    pro Subject und Uebungstyp abgeleitet.
+    Phase-Zuordnung:
+      - Subjects in MANUAL_PHASE_OVERRIDE: explizite Datum->Phase Zuordnung
+      - Alle anderen: chronologisch (1. Datum = PER, 2. = OVU, 3. = LUT)
+
+    Deduplizierung:
+      Gleicher c3d-Dateiname am gleichen Datum fuer dasselbe Subject wird
+      nur einmal gezaehlt (behebt Duplikate durch mehrere Exercise-Sessions).
     """
     df = pd.read_excel(metadata_path)
 
@@ -111,17 +141,31 @@ def load_expected_trials(metadata_path: Path) -> pd.DataFrame:
     df["exercise_short"] = df["EXERCISE"].apply(exercise_to_short)
     df["side"] = df["C3D_FILENAME"].apply(c3d_filename_to_side)
 
-    # Phase aus chronologischer Reihenfolge der Sitzungsdaten ableiten
-    # Pro Subject + Exercise-Typ: 1. Datum = PER, 2. = OVU, 3. = LUT
     df["SESSION_DATE"] = pd.to_datetime(df["SESSION_DATE"], errors="coerce")
+
+    # Duplikate entfernen: gleicher Subject + Datum + c3d-Dateiname
+    # (entsteht wenn derselbe Trial in mehreren Exercise-Sessions auftaucht)
+    df = df.drop_duplicates(
+        subset=["subject_id", "SESSION_DATE", "C3D_FILENAME"]
+    ).copy()
 
     records = []
     for (subj, ex_short), grp in df.groupby(["subject_id", "exercise_short"]):
-        dates = sorted(grp["SESSION_DATE"].unique())
-        date_to_phase = {}
-        for i, d in enumerate(dates):
-            if i < len(PHASE_ORDER):
-                date_to_phase[d] = PHASE_ORDER[i]
+
+        # Phase-Zuordnung: manuell oder chronologisch
+        if subj in MANUAL_PHASE_OVERRIDE:
+            override = MANUAL_PHASE_OVERRIDE[subj]
+            date_to_phase = {}
+            for d in grp["SESSION_DATE"].unique():
+                d_date = d.date() if hasattr(d, "date") else d
+                if d_date in override:
+                    date_to_phase[d] = override[d_date]
+        else:
+            dates = sorted(grp["SESSION_DATE"].unique())
+            date_to_phase = {}
+            for i, d in enumerate(dates):
+                if i < len(PHASE_ORDER):
+                    date_to_phase[d] = PHASE_ORDER[i]
 
         for _, row in grp.iterrows():
             phase = date_to_phase.get(row["SESSION_DATE"])
