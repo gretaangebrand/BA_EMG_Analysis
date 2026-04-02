@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+# import matplotlib.ticker as ticker
 
 
 # ============================================================
@@ -348,8 +348,8 @@ def main():
     print(f"  Pipeline-Report aktualisiert: {REPORT_PATH.name}")
 
     # 6) Visualisierung
-    _create_overview_plot(df_feat, OUTPUT_DIR / "emg_features_overview.pdf")
-    _create_responder_plot(df_feat, OUTPUT_DIR / "emg_features_responder.pdf")
+    _create_overview_plot(df_feat, OUTPUT_DIR / "emg_features_overview.svg")
+    _create_responder_plot(df_feat, OUTPUT_DIR / "emg_features_responder.svg")
 
     # 7) Zusammenfassung: Gruppenmittelwerte
     print(f"\n{'='*70}")

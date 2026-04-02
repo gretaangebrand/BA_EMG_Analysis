@@ -22,7 +22,7 @@ Relevante Seiten fuer die Auswertung: BILATERAL und RIGHT
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from collections import defaultdict
+# from collections import defaultdict
 
 
 # ============================================================
