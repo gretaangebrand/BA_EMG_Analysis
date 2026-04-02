@@ -30,7 +30,7 @@ from collections import defaultdict
 # ============================================================
 PREPROCESSED_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
 METADATA_XLS     = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\c3d_metadata_export.xlsx")
-REPORT_PATH      = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data\preprocessing_summary.xlsx")
+REPORT_PATH      = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")
 
 
 # ============================================================
@@ -308,47 +308,44 @@ def main():
     all_counts["phase_label"] = all_counts["phase"].map(PHASE_LABELS)
     all_counts["vollstaendig"] = np.where(all_counts["fehlend"] == 0, "✓", "✗")
 
-    # 6) Excel-Bericht
-    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    print(f"\nSpeichere Bericht: {REPORT_PATH.name}")
+    # 6) Excel-Bericht -> Pipeline_Reports.xlsx
+    summary = pd.DataFrame([{
+        "Erwartete_Trials_gesamt": len(df_expected),
+        "Vorhandene_Trials_gesamt": len(df_actual),
+        "Fehlende_Trials_BILATERAL_RIGHT": int(total_missing_relevant),
+        "Fehlende_Trials_LEFT": int(total_missing_left),
+        "Fehlende_Trials_gesamt": int(total_missing_relevant + total_missing_left),
+    }])
 
-    with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
-        # Zusammenfassung
-        summary = pd.DataFrame([{
-            "Erwartete_Trials_gesamt": len(df_expected),
-            "Vorhandene_Trials_gesamt": len(df_actual),
-            "Fehlende_Trials_BILATERAL_RIGHT": int(total_missing_relevant),
-            "Fehlende_Trials_LEFT": int(total_missing_left),
-            "Fehlende_Trials_gesamt": int(total_missing_relevant + total_missing_left),
-        }])
-        summary.to_excel(writer, sheet_name="Zusammenfassung", index=False)
+    overview = all_counts[
+        ["subject_id", "phase_label", "exercise", "side",
+         "erwartet", "vorhanden", "fehlend", "vollstaendig"]
+    ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
+                      "exercise": "Uebung", "side": "Seite"})
+    overview = overview.sort_values(["Subject","Uebung","Phase","Seite"])
 
-        # Fehlende Trials (nur BILATERAL + RIGHT)
-        if not df_missing_relevant.empty:
-            out = df_missing_relevant[
-                ["subject_id", "phase_label", "exercise", "side",
-                 "erwartet", "vorhanden", "fehlend"]
-            ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
-                              "exercise": "Uebung", "side": "Seite"})
-            out.to_excel(writer, sheet_name="Fehlende_Trials_relevant", index=False)
+    sheets = {
+        "02b_Fehlende_Zusammenfassung": summary,
+        "02b_Fehlende_Gesamtuebersicht": overview,
+    }
 
-        # Fehlende Trials LEFT (zur Vollstaendigkeit)
-        if not df_missing_left.empty:
-            out_left = df_missing_left[
-                ["subject_id", "phase_label", "exercise", "side",
-                 "erwartet", "vorhanden", "fehlend"]
-            ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
-                              "exercise": "Uebung", "side": "Seite"})
-            out_left.to_excel(writer, sheet_name="Fehlende_Trials_LEFT", index=False)
-
-        # Gesamtuebersicht
-        overview = all_counts[
+    if not df_missing_relevant.empty:
+        out = df_missing_relevant[
             ["subject_id", "phase_label", "exercise", "side",
-             "erwartet", "vorhanden", "fehlend", "vollstaendig"]
+             "erwartet", "vorhanden", "fehlend"]
         ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
                           "exercise": "Uebung", "side": "Seite"})
-        overview = overview.sort_values(["Subject","Uebung","Phase","Seite"])
-        overview.to_excel(writer, sheet_name="Gesamtuebersicht", index=False)
+        sheets["02b_Fehlende_BIL_RIGHT"] = out
+
+    if not df_missing_left.empty:
+        out_left = df_missing_left[
+            ["subject_id", "phase_label", "exercise", "side",
+             "erwartet", "vorhanden", "fehlend"]
+        ].rename(columns={"phase_label": "Phase", "subject_id": "Subject",
+                          "exercise": "Uebung", "side": "Seite"})
+        sheets["02b_Fehlende_LEFT"] = out_left
+
+    _save_to_pipeline_report(sheets)
 
     print(f"\n{'='*70}")
     print("FERTIG")
@@ -356,6 +353,30 @@ def main():
     print(f"  Fehlende Trials (LEFT)            : {total_missing_left}")
     print(f"  Bericht                           : {REPORT_PATH}")
     print(f"{'='*70}")
+
+
+# ============================================================
+# ZENTRALE REPORT-FUNKTION
+# ============================================================
+
+def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
+    """
+    Speichert mehrere DataFrames als Reiter in die zentrale
+    Pipeline_Reports.xlsx. Bestehende Reiter anderer Skripte
+    bleiben erhalten; eigene Reiter werden ueberschrieben.
+    """
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if REPORT_PATH.exists():
+        from openpyxl import load_workbook
+        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl", mode="a",
+                            if_sheet_exists="replace") as writer:
+            for name, df in sheets.items():
+                df.to_excel(writer, sheet_name=name, index=False)
+    else:
+        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
+            for name, df in sheets.items():
+                df.to_excel(writer, sheet_name=name, index=False)
 
 
 if __name__ == "__main__":

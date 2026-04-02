@@ -31,7 +31,7 @@ import numpy as np
 # ============================================================
 # Rohdaten prüfen
 SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data\emg_amplitude_check.xlsx")
+REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")
 
 # Bekannte Sonderfälle (bereits korrekt behandelt in 02_preprocess_emg.py)
 KNOWN_SPECIAL = {"S08"}
@@ -207,35 +207,57 @@ def main():
             print(f"      {row['file']}: Max={row['abs_max']:.1f}")
 
     # -------------------------------------------------------
-    # Excel-Bericht
+    # Excel-Bericht -> Pipeline_Reports.xlsx
     # -------------------------------------------------------
     df["skalierung_korrekt"] = df.apply(
         lambda r: "bereits korrigiert" if r["subject_id"] in KNOWN_SPECIAL
                   else r["status"], axis=1
     )
 
-    with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
-        df.to_excel(writer, sheet_name="Alle_Dateien", index=False)
+    # Zusammenfassung pro Subject
+    summary = df.groupby("subject_id").agg(
+        n_dateien    = ("file",       "count"),
+        max_median   = ("abs_max",    "median"),
+        mean_median  = ("abs_mean",   "median"),
+        status_mode  = ("status",     lambda x: x.mode()[0])
+    ).reset_index()
 
-        # Nur auffällige Dateien (ohne bekannte Sonderfälle)
-        auffaellig = df[
-            (df["status"] != "OK (µV)") &
-            (~df["subject_id"].isin(KNOWN_SPECIAL))
-        ]
-        if not auffaellig.empty:
-            auffaellig.to_excel(writer, sheet_name="Auffaellig", index=False)
+    sheets = {"01b_Rohdaten_Amplituden": df, "01b_Rohdaten_Zusammenfassung": summary}
 
-        # Übersicht pro Subject (Median der Medians)
-        summary = df.groupby("subject_id").agg(
-            n_dateien    = ("file",       "count"),
-            max_median   = ("abs_max",    "median"),
-            mean_median  = ("abs_mean",   "median"),
-            status_mode  = ("status",     lambda x: x.mode()[0])
-        ).reset_index()
-        summary.to_excel(writer, sheet_name="Zusammenfassung_Subject", index=False)
+    auffaellig = df[
+        (df["status"] != "OK (µV)") &
+        (~df["subject_id"].isin(KNOWN_SPECIAL))
+    ]
+    if not auffaellig.empty:
+        sheets["01b_Rohdaten_Auffaellig"] = auffaellig
 
+    _save_to_pipeline_report(sheets)
     print(f"\nBericht gespeichert: {REPORT_PATH}")
     print("\nFERTIG.")
+
+
+# ============================================================
+# ZENTRALE REPORT-FUNKTION
+# ============================================================
+
+def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
+    """
+    Speichert mehrere DataFrames als Reiter in die zentrale
+    Pipeline_Reports.xlsx. Bestehende Reiter anderer Skripte
+    bleiben erhalten; eigene Reiter werden ueberschrieben.
+    """
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if REPORT_PATH.exists():
+        from openpyxl import load_workbook
+        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl", mode="a",
+                            if_sheet_exists="replace") as writer:
+            for name, df in sheets.items():
+                df.to_excel(writer, sheet_name=name, index=False)
+    else:
+        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
+            for name, df in sheets.items():
+                df.to_excel(writer, sheet_name=name, index=False)
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ import numpy as np
 # PFADE – anpassen!
 # ============================================================
 SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
-REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data\emg_amplitude_check.xlsx")
+REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")
 
 # Bekannte Sonderfälle – werden separat markiert, nicht als Fehler gewertet
 KNOWN_SPECIAL = {"S08", "S09", "S11"}
@@ -232,43 +232,61 @@ def main():
             print(f"      {row['rel_path']}: Max={row['abs_max']:.1f}")
 
     # -------------------------------------------------------
-    # Excel-Bericht
+    # Excel-Bericht -> Pipeline_Reports.xlsx
     # -------------------------------------------------------
-    print(f"\nSpeichere Bericht: {REPORT_PATH}")
-
-    with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
-
-        # Sheet 1: Alle Dateien
-        df.to_excel(writer, sheet_name="Alle_Dateien", index=False)
-
-        # Sheet 2: Nur auffällige (ohne bekannte Sonderfälle)
-        auffaellig = df[
-            (df["status"] != "OK (µV)") &
-            (~df["subject_id"].isin(KNOWN_SPECIAL))
-        ]
-        if not auffaellig.empty:
-            auffaellig.to_excel(writer, sheet_name="Auffaellig", index=False)
-
-        # Sheet 3: Zusammenfassung pro Subject
-        summary = (
-            df.groupby("subject_id")
-            .agg(
-                n_dateien       = ("file",       "count"),
-                max_abs_max     = ("abs_max",    "max"),
-                median_abs_max  = ("abs_max",    "median"),
-                median_abs_mean = ("abs_mean",   "median"),
-                n_ok            = ("status",     lambda x: (x == "OK (µV)").sum()),
-                n_auffaellig    = ("status",     lambda x: (x != "OK (µV)").sum()),
-            )
-            .reset_index()
+    summary = (
+        df.groupby("subject_id")
+        .agg(
+            n_dateien       = ("file",       "count"),
+            max_abs_max     = ("abs_max",    "max"),
+            median_abs_max  = ("abs_max",    "median"),
+            median_abs_mean = ("abs_mean",   "median"),
+            n_ok            = ("status",     lambda x: (x == "OK (µV)").sum()),
+            n_auffaellig    = ("status",     lambda x: (x != "OK (µV)").sum()),
         )
-        summary["bekannter_sonderfall"] = summary["subject_id"].isin(KNOWN_SPECIAL)
-        summary.to_excel(writer, sheet_name="Zusammenfassung_Subject", index=False)
+        .reset_index()
+    )
+    summary["bekannter_sonderfall"] = summary["subject_id"].isin(KNOWN_SPECIAL)
 
+    sheets = {
+        "02c_Preproc_Amplituden": df,
+        "02c_Preproc_Zusammenfassung": summary,
+    }
+
+    auffaellig = df[
+        (df["status"] != "OK (µV)") &
+        (~df["subject_id"].isin(KNOWN_SPECIAL))
+    ]
+    if not auffaellig.empty:
+        sheets["02c_Preproc_Auffaellig"] = auffaellig
+
+    _save_to_pipeline_report(sheets)
     print("FERTIG.")
 
+
+# ============================================================
+# ZENTRALE REPORT-FUNKTION
+# ============================================================
+
+def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
+    """
+    Speichert mehrere DataFrames als Reiter in die zentrale
+    Pipeline_Reports.xlsx. Bestehende Reiter anderer Skripte
+    bleiben erhalten; eigene Reiter werden ueberschrieben.
+    """
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if REPORT_PATH.exists():
+        from openpyxl import load_workbook
+        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl", mode="a",
+                            if_sheet_exists="replace") as writer:
+            for name, df in sheets.items():
+                df.to_excel(writer, sheet_name=name, index=False)
+    else:
+        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
+            for name, df in sheets.items():
+                df.to_excel(writer, sheet_name=name, index=False)
 
 
 if __name__ == "__main__":
     main()
-
