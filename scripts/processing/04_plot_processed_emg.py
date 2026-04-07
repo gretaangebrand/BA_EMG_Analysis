@@ -1,5 +1,5 @@
 """
-05_plot_processed_emg.py
+04_plot_processed_emg.py
 ========================
 Plottet die verarbeiteten EMG-Daten (nach Pipeline) pro Subject und Übungstyp.
 
@@ -277,7 +277,7 @@ def create_plot(
 
 def main():
     print("=" * 62)
-    print("05_plot_processed_emg.py  –  Processed EMG Plots")
+    print("04_plot_processed_emg.py  –  Processed EMG Plots")
     print("=" * 62)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

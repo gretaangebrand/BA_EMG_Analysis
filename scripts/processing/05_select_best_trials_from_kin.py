@@ -47,11 +47,12 @@ EXERCISE_CONFIGS = [
      "label": "SQ einbeinig R"},
 ]
 
-# Ausschluss von Trial in S07 wegen implausibiler Werte.
+
 # Format: (Subject, Übungs-Label, Trial-Name-Teilstring)
-# Begründung wird als Kommentar dokumentiert.
+# Kommentar: Ausschluss von Trial in S07 wegen implausibiler Werte.
 EXCLUDED_TRIALS = [
     # S07, CMJ bilateral, Trial 02: Jumpheight 0.768 m – unrealistisch hoch, muss einen Messfehler gegeben haben
+    # deshalb wird es als bester Trial ausgeschlossen
     ("S07", "CMJ bilateral", "CMJ_02"),
 ]
 
