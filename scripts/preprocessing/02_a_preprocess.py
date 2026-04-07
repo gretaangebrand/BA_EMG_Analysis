@@ -43,6 +43,9 @@ from scripts.utils.helpers import (
 SOURCE_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\02_anonymized_csv_data")
 OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
 
+# Pfad fuer das Trial-Inventar (neue Ausgabe)
+INVENTORY_CSV = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data\trial_inventar_rohdaten.csv")
+
 # Anzahl Header-Zeilen je Subject-Gruppe
 _HEADER_ROWS_DEFAULT = 5   # S01-S07
 _HEADER_ROWS_SPECIAL = 4   # S08 (und ggf. S09-S11)
@@ -365,7 +368,7 @@ def trial_stem_to_folder_and_side(trial_stem: str) -> tuple[str, str]:
 # Hauptfunktion pro Datei
 # -----------------------------------------------------------------------------
 
-def preprocess_file(file_path: Path) -> int:
+def preprocess_file(file_path: Path) -> tuple[int, list[dict]]:
     """
     Verarbeitet eine einzelne CSV vollstaendig:
       1. Metadaten aus Dateinamen lesen
@@ -373,16 +376,20 @@ def preprocess_file(file_path: Path) -> int:
       3. Daten laden
       4. Pro Trial EMG- und Kinematik-DataFrame separat speichern
 
-    Gibt die Anzahl gespeicherter Trial-Dateien zurueck (EMG + KIN).
+    Gibt zurueck:
+      - Anzahl gespeicherter Trial-Dateien (EMG + KIN)
+      - Liste von Trial-Inventar-Records (fuer Vergleich mit Metadata)
     """
     subject_id = get_subject_id_from_filename(file_path)
     phase      = detect_phase(file_path)
     fs_hint    = get_sampling_rate_for_subject(subject_id)
     n_hdr      = _n_header_rows(subject_id)
 
+    inventory_records = []
+
     if phase is None:
         print(f"[FEHLER] Phase nicht erkannt: {file_path} – uebersprungen.")
-        return 0
+        return 0, inventory_records
 
     # Header einlesen
     header      = read_header(file_path, n_hdr)
@@ -395,7 +402,7 @@ def preprocess_file(file_path: Path) -> int:
     trial_paths = _get_trial_paths_in_order(row0)
     if not trial_paths:
         print("  [FEHLER] Keine Trials gefunden – uebersprungen.")
-        return 0
+        return 0, inventory_records
 
     # Datenteil einlesen
     data  = pd.read_csv(file_path, header=None, skiprows=n_hdr, low_memory=False)
@@ -413,7 +420,25 @@ def preprocess_file(file_path: Path) -> int:
 
         col_map = _col_indices_by_type(row0, row2, row3, trial_path, has_emg_raw)
 
+        # --- Inventar-Record fuer diesen Trial anlegen ---
+        inv_record = {
+            "subject_id":    subject_id,
+            "phase":         phase,
+            "exercise":      movement,
+            "side":          side,
+            "trial_name":    short_name,
+            "c3d_path":      trial_path,
+            "quelle_csv":    file_path.name,
+            "hat_emg":       len(col_map["emg"]) > 0,
+            "hat_kin":       len(col_map["kin"]) > 0,
+            "emg_gespeichert": False,
+            "kin_gespeichert":  False,
+            "bemerkung":     "",
+        }
+
         if not col_map["emg"]:
+            inv_record["bemerkung"] = "keine EMG-Spalten in Rohdatei"
+            inventory_records.append(inv_record)
             print(f"  [WARNUNG] {short_name}: keine EMG-Spalten – uebersprungen.")
             continue
 
@@ -474,8 +499,10 @@ def preprocess_file(file_path: Path) -> int:
             print(f"  [EMG] {out_emg.relative_to(OUTPUT_DIR)}  "
                   f"({len(emg_data_cols)} Kanäle | {len(emg_df)} Samples "
                   f"| {len(emg_df)/fs_emg:.2f} s @ {fs_emg:.0f} Hz)")
+            inv_record["emg_gespeichert"] = True
             saved += 1
         else:
+            inv_record["bemerkung"] = "EMG-Spalten vorhanden, aber keine gueltigen Daten"
             print(f"  [WARNUNG] {short_name}: keine gueltigen EMG-Daten.")
 
         # ---- Kinematik-Datei ----
@@ -494,9 +521,12 @@ def preprocess_file(file_path: Path) -> int:
                 print(f"  [KIN] {out_kin.relative_to(OUTPUT_DIR)}  "
                       f"({len(kin_data_cols)} Kanäle | {len(kin_df)} Samples "
                       f"| {len(kin_df)/fs_video:.2f} s @ {fs_video:.0f} Hz)")
+                inv_record["kin_gespeichert"] = True
                 saved += 1
 
-    return saved
+        inventory_records.append(inv_record)
+
+    return saved, inventory_records
 
 
 # -----------------------------------------------------------------------------
@@ -509,14 +539,41 @@ if __name__ == "__main__":
 
     total_saved  = 0
     total_errors = 0
+    all_inventory = []
 
     for file_path in all_files:
         try:
-            n = preprocess_file(file_path)
+            n, inv_records = preprocess_file(file_path)
             total_saved += n
+            all_inventory.extend(inv_records)
         except Exception as e:
             print(f"[FEHLER] {file_path.name}: {e}")
             total_errors += 1
+
+    # ── Trial-Inventar speichern ──────────────────────────────────────────
+    if all_inventory:
+        df_inv = pd.DataFrame(all_inventory)
+        df_inv = df_inv.sort_values(
+            ["subject_id", "phase", "exercise", "side", "trial_name"]
+        ).reset_index(drop=True)
+
+        INVENTORY_CSV.parent.mkdir(parents=True, exist_ok=True)
+        df_inv.to_csv(INVENTORY_CSV, index=False)
+
+        # Zusammenfassung
+        n_total   = len(df_inv)
+        n_emg_ok  = df_inv["emg_gespeichert"].sum()
+        n_no_emg  = (~df_inv["hat_emg"]).sum()
+        n_emg_fail = df_inv["hat_emg"].sum() - n_emg_ok
+
+        print(f"\n{'='*65}")
+        print("TRIAL-INVENTAR (aus Rohdateien)")
+        print(f"{'='*65}")
+        print(f"  Trials in Rohdateien gesamt : {n_total}")
+        print(f"  EMG erfolgreich gespeichert : {int(n_emg_ok)}")
+        print(f"  Ohne EMG-Spalten (erwartet) : {int(n_no_emg)}")
+        print(f"  EMG vorhanden, aber fehlgeschlagen : {int(n_emg_fail)}")
+        print(f"  Inventar gespeichert        : {INVENTORY_CSV}")
 
     print(f"\n{'='*65}")
     print("FERTIG")

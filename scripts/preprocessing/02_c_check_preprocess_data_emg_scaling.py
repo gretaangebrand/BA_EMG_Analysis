@@ -22,7 +22,7 @@ import pandas as pd
 # import numpy as np
 
 # ============================================================
-# PFADE – anpassen!
+# PFADE
 # ============================================================
 SOURCE_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
 REPORT_PATH = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")

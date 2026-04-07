@@ -1,9 +1,9 @@
 """
 check_emg_amplitudes.py
 =======================
-Prueft alle anonymisierten CSV-Dateien auf ungewoehnliche EMG-Amplituden,
-um zu erkennen ob weitere Subjects (neben S08) mit einer anderen
-Verstaerkerstufe aufgezeichnet wurden.
+Prüft alle anonymisierten CSV-Dateien auf ungewöhnliche EMG-Amplituden,
+um zu erkennen, ob weitere Subjects (neben S08) mit einer anderen
+Verstärkerstufe aufgezeichnet wurden.
 
 Hintergrund:
   Normale EMG-Rohdaten in µV haben typischerweise:
