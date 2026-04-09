@@ -1,5 +1,5 @@
 """
-06_extract_emg_features.py
+06_extract_emg_features_statistic.py
 ===========================
 Extrahiert EMG-Kennwerte (mean RMS, peak RMS) aus den verarbeiteten
 EMG-Daten (_processed.csv) für die besten Trials (aus 05_select_best_trials).
@@ -213,7 +213,7 @@ def extract_features_from_curve(pct: np.ndarray, signal: np.ndarray,
 
 def main():
     print("=" * 70)
-    print("06_extract_emg_features.py  –  EMG-Kennwerte extrahieren")
+    print("06_extract_emg_features_statistic.py  –  EMG-Kennwerte extrahieren")
     print("=" * 70)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -337,7 +337,7 @@ def main():
     ).reset_index(drop=True)
 
     # 4) CSV speichern
-    csv_out = OUTPUT_DIR / "emg_features.csv"
+    csv_out = OUTPUT_DIR / "emg_features_statistic.csv"
     df_feat.to_csv(csv_out, index=False)
     print(f"\n  CSV gespeichert: {csv_out}")
 
@@ -348,7 +348,7 @@ def main():
     print(f"  Pipeline-Report aktualisiert: {REPORT_PATH.name}")
 
     # 6) Visualisierung
-    _create_overview_plot(df_feat, OUTPUT_DIR / "emg_features_overview.svg")
+    _create_overview_plot(df_feat, OUTPUT_DIR / "emg_features_statistic_overview.svg")
     _create_responder_plot(df_feat, OUTPUT_DIR / "emg_features_responder.svg")
 
     # 7) Zusammenfassung: Gruppenmittelwerte
@@ -363,11 +363,85 @@ def main():
         print(f"  {r['Uebung']:22s} | {r['Phase']:4s} | {r['Muskel']:25s} | "
               f"{r['mean']:6.1f} ± {r['std']:5.1f} %BL  (n={int(r['count'])})")
 
+    # 8) SPSS Export: Wide Format pro Abschnitt
+    _export_spss_wide(df_feat)
+    
     print(f"\n{'='*70}")
     print("FERTIG")
     print(f"  Output: {OUTPUT_DIR}")
     print(f"{'='*70}")
 
+# ============================================================
+# SPSS-EXPORT: Wide-Format
+# ============================================================
+ 
+def _export_spss_wide(df: pd.DataFrame):
+    """
+    Exportiert die EMG-Features im Wide-Format fuer SPSS.
+ 
+    SPSS braucht fuer die Messwiederholungs-ANOVA:
+      - Eine Zeile pro Probandin (Subject)
+      - Die drei Zyklusphasen als separate Spalten
+ 
+    Pro Abschnitt (Gesamt, Landung, Bodenkontakt, Landung2) und
+    pro Kennwert (mean_rms, peak_rms) wird eine eigene CSV erzeugt.
+ 
+    Dateinamen:
+      spss_Gesamt_mean_rms.csv
+      spss_Gesamt_peak_rms.csv
+      spss_Landung_mean_rms.csv   (nur CMJ)
+      ...
+ 
+    Spaltenformat:
+      Subject | Uebung | Muskel | PER | OVU | LUT
+    """
+    spss_dir = OUTPUT_DIR / "spss_export"
+    spss_dir.mkdir(parents=True, exist_ok=True)
+ 
+    abschnitte = df["Abschnitt"].unique()
+    kennwerte  = ["mean_rms", "peak_rms"]
+ 
+    n_files = 0
+ 
+    for abschnitt in abschnitte:
+        df_sub = df[df["Abschnitt"] == abschnitt].copy()
+ 
+        for kennwert in kennwerte:
+            # Pivot: Zeilen = Subject × Uebung × Muskel, Spalten = Phase
+            try:
+                df_wide = df_sub.pivot_table(
+                    index=["Subject", "Uebung", "Muskel"],
+                    columns="Phase",
+                    values=kennwert,
+                    aggfunc="first",
+                ).reset_index()
+            except Exception as e:
+                print(f"  [WARNUNG] Pivot fehlgeschlagen fuer "
+                      f"{abschnitt}/{kennwert}: {e}")
+                continue
+ 
+            # Spaltenreihenfolge sicherstellen: PER, OVU, LUT
+            phase_cols = [p for p in ["PER", "OVU", "LUT"] if p in df_wide.columns]
+            df_wide = df_wide[["Subject", "Uebung", "Muskel"] + phase_cols]
+ 
+            # Spaltennamen SPSS-freundlich umbenennen
+            df_wide = df_wide.rename(columns={
+                p: f"{kennwert}_{p}" for p in phase_cols
+            })
+ 
+            # Sortieren
+            df_wide = df_wide.sort_values(
+                ["Uebung", "Muskel", "Subject"]
+            ).reset_index(drop=True)
+ 
+            # Speichern
+            filename = f"spss_{abschnitt}_{kennwert}.csv"
+            out_path = spss_dir / filename
+            df_wide.to_csv(out_path, index=False, sep=";", decimal=",")
+            n_files += 1
+ 
+    print(f"\n  SPSS-Export: {n_files} Dateien in {spss_dir}")
+    print(f"  Format: Semikolon-getrennt, Dezimalkomma")
 
 # ============================================================
 # VISUALISIERUNG
