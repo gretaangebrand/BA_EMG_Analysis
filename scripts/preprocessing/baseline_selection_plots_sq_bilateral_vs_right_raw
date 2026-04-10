@@ -1,0 +1,433 @@
+"""
+plot_sq_bilateral_vs_right_raw.py
+==================================
+Schneller Vergleichsplot: Bilateraler vs. einbeiniger Squat (rechte Seite)
+auf den preprocessed Roh-EMG-Daten (03_preprocessed_emg_data).
+ 
+Layout (wie 07 Overlay):
+  - 5 Zeilen = 5 Muskeln
+  - 3 Spalten = 3 Zyklusphasen (PER | OVU | LUT)
+  - Pro Subplot: BILATERAL (blau) vs. RIGHT (orange) als Mittelwert ± SD
+ 
+Alle verfügbaren Trials pro Phase werden gemittelt.
+Nur R-Seite der Muskulatur.
+"""
+
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
+
+# ============================================================
+# PFADE – anpassen!
+# ============================================================
+DATA_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
+OUTPUT_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\figures\sq_bilateral_vs_right_emg_aktivierung")
+
+
+# ============================================================
+# EINSTELLUNGEN
+# ============================================================
+PHASES = ["01_PER", "02_OVU", "03_LUT"]
+PHASE_LABELS = {
+    "01_PER": "Follikelphase (PER)",
+    "02_OVU": "Ovulationsphase (OVU)",
+    "03_LUT": "Lutealphase (LUT)",
+}
+ 
+SIDE = "R"
+ 
+MUSCLE_ORDER = [
+    "Vastus Lateralis",
+    "Biceps Femoris",
+    "Semitendinosus",
+    "Gluteus Medius",
+    "Gastrocnemius medial",
+]
+ 
+# Farben für die zwei Squat-Bedingungen
+COLOR_BILATERAL = "#2a9d8f"   # Petrol
+COLOR_RIGHT     = "#e76f51"   # Orange-rot
+ 
+SHOW_SD    = True
+MEAN_LW    = 2.0
+SD_ALPHA   = 0.15
+FIG_WIDTH  = 18
+FIG_HEIGHT = 16
+ 
+ 
+# ============================================================
+# HILFSFUNKTIONEN
+# ============================================================
+ 
+def load_all_emg_trials(phase_dir: Path, exercise: str, side: str) -> list[pd.DataFrame]:
+    """Laedt alle *_emg.csv Dateien fuer eine Phase/Übung/Seite."""
+    trial_dir = phase_dir / exercise / side
+    if not trial_dir.exists():
+        return []
+ 
+    dfs = []
+    for csv in sorted(trial_dir.glob("*_emg.csv")):
+        try:
+            df = pd.read_csv(csv, low_memory=False)
+            dfs.append(df)
+        except Exception as e:
+            print(f"  [WARNUNG] {csv.name}: {e}")
+    return dfs
+ 
+ 
+def compute_mean_sd_raw(trials: list[pd.DataFrame], col_name: str):
+    """
+    Berechnet Mittelwert und SD über mehrere Roh-EMG-Trials.
+    Da die Trials unterschiedlich lang sein können, wird auf die
+    kürzeste Länge gekürzt.
+    Gibt (time_s, mean, sd) zurück.
+    """
+    if not trials:
+        return None, None, None
+ 
+    # Signale sammeln
+    signals = []
+    time_arrays = []
+    for df in trials:
+        if col_name not in df.columns or "time_s" not in df.columns:
+            continue
+        sig = pd.to_numeric(df[col_name], errors="coerce").values
+        t = df["time_s"].values
+        if len(sig) > 0:
+            signals.append(sig)
+            time_arrays.append(t)
+ 
+    if not signals:
+        return None, None, None
+ 
+    # Auf kürzeste Länge kürzen
+    min_len = min(len(s) for s in signals)
+    signals = [s[:min_len] for s in signals]
+    time_s = time_arrays[0][:min_len]
+ 
+    # Relative Zeit (start bei 0)
+    time_s = time_s - time_s[0]
+ 
+    stacked = np.vstack(signals)
+    mean = np.mean(stacked, axis=0)
+    sd = np.std(stacked, axis=0, ddof=1) if len(signals) > 1 else np.zeros_like(mean)
+ 
+    return time_s, mean, sd
+ 
+ 
+# ============================================================
+# PLOT-FUNKTION
+# ============================================================
+ 
+def create_comparison_plot(
+    trials_bilateral: dict[str, list[pd.DataFrame]],  # phase -> trials
+    trials_right:     dict[str, list[pd.DataFrame]],
+    out_path:         Path,
+):
+    """
+    5 Muskeln × 3 Phasen, BILATERAL vs. RIGHT überlagert.
+    """
+    n_muscles = len(MUSCLE_ORDER)
+    n_phases  = len(PHASES)
+ 
+    fig, axes = plt.subplots(
+        n_muscles, n_phases,
+        figsize=(FIG_WIDTH, FIG_HEIGHT),
+        sharex=False,
+        sharey=False,
+    )
+ 
+    for col_idx, phase in enumerate(PHASES):
+        t_bil  = trials_bilateral.get(phase, [])
+        t_rght = trials_right.get(phase, [])
+ 
+        for row_idx, muscle in enumerate(MUSCLE_ORDER):
+            ax       = axes[row_idx, col_idx]
+            col_name = f"{SIDE}_{muscle}"
+ 
+            # Spalten-Titel (Phase) – nur erste Zeile
+            if row_idx == 0:
+                n_bil = len(t_bil)
+                n_rgt = len(t_rght)
+                ax.set_title(
+                    f"{PHASE_LABELS.get(phase, phase)}\n"
+                    f"(BIL n={n_bil}, RIGHT n={n_rgt})",
+                    fontsize=9, fontweight="bold", pad=5,
+                )
+ 
+            # Zeilen-Label (Muskel) – nur erste Spalte
+            if col_idx == 0:
+                ax.set_ylabel(muscle, fontsize=8, labelpad=3)
+ 
+            # Kein Daten-Fall
+            if not t_bil and not t_rght:
+                ax.text(0.5, 0.5, "Keine Daten",
+                        ha="center", va="center",
+                        transform=ax.transAxes,
+                        fontsize=8, color="#999999")
+                ax.set_xticks([])
+                ax.set_yticks([])
+                continue
+ 
+            # BILATERAL plotten
+            t_s, mean, sd = compute_mean_sd_raw(t_bil, col_name)
+            if t_s is not None:
+                if SHOW_SD:
+                    ax.fill_between(t_s, mean - sd, mean + sd,
+                                    color=COLOR_BILATERAL, alpha=SD_ALPHA)
+                ax.plot(t_s, mean, color=COLOR_BILATERAL,
+                        linewidth=MEAN_LW, label="SQ bilateral")
+ 
+            # RIGHT plotten
+            t_s, mean, sd = compute_mean_sd_raw(t_rght, col_name)
+            if t_s is not None:
+                if SHOW_SD:
+                    ax.fill_between(t_s, mean - sd, mean + sd,
+                                    color=COLOR_RIGHT, alpha=SD_ALPHA)
+                ax.plot(t_s, mean, color=COLOR_RIGHT,
+                        linewidth=MEAN_LW, label="SQ einbeinig R")
+ 
+            # Nulllinie
+            ax.axhline(y=0, color="black", linewidth=0.4, alpha=0.35)
+ 
+            # Achsen
+            ax.tick_params(axis="both", labelsize=6)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+ 
+            if row_idx == n_muscles - 1:
+                ax.set_xlabel("Zeit (s)", fontsize=7, labelpad=2)
+ 
+    # Legende
+    handles = [
+        Line2D([0], [0], color=COLOR_BILATERAL, linewidth=2.5,
+               label="SQ bilateral"),
+        Line2D([0], [0], color=COLOR_RIGHT, linewidth=2.5,
+               label="SQ einbeinig R"),
+    ]
+    if SHOW_SD:
+        handles.append(plt.Rectangle((0, 0), 1, 1, fc="gray", alpha=0.2,
+                                     label="± SD"))
+ 
+    fig.legend(
+        handles=handles,
+        loc="lower center",
+        ncol=len(handles),
+        fontsize=10,
+        frameon=True,
+        framealpha=0.9,
+        bbox_to_anchor=(0.5, 0.005),
+    )
+ 
+    fig.suptitle(
+        "Squat bilateral vs. einbeinig (R)  –  Roh-EMG Vergleich (R-Muskulatur)\n"
+        "Alle verfügbaren Trials, Mittelwert ± SD über Probandinnen",
+        fontsize=13, fontweight="bold", y=0.995,
+    )
+    fig.text(
+        0.005, 0.5, "EMG-Amplitude (µV)",
+        va="center", rotation="vertical", fontsize=10,
+    )
+ 
+    plt.tight_layout(rect=[0.025, 0.05, 1.0, 0.96])
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"\n  -> Gespeichert: {out_path}")
+ 
+ 
+# ============================================================
+# FEATURE-BERECHNUNG PRO TRIAL
+# ============================================================
+ 
+def compute_trial_features(trials: list[pd.DataFrame], col_name: str) -> list[dict]:
+    """
+    Berechnet Mean RMS und Peak pro einzelnem Trial für einen Muskel.
+    Gibt eine Liste von dicts mit {mean_rms, peak} zurück.
+    """
+    results = []
+    for df in trials:
+        if col_name not in df.columns:
+            continue
+        sig = pd.to_numeric(df[col_name], errors="coerce").dropna().values
+        if len(sig) == 0:
+            continue
+        abs_sig = np.abs(sig)
+        results.append({
+            "mean_rms": float(np.sqrt(np.mean(sig ** 2))),
+            "peak":     float(np.max(abs_sig)),
+        })
+    return results
+ 
+ 
+# ============================================================
+# PDF-TABELLE: AKTIVIERUNG
+# ============================================================
+ 
+def create_activation_table(
+    trials_bilateral: dict[str, list[pd.DataFrame]],
+    trials_right:     dict[str, list[pd.DataFrame]],
+    out_path:         Path,
+):
+    """
+    Erstellt eine PDF-Tabelle mit Mean RMS und Peak (µV)
+    pro Muskel × Phase × Bedingung (BILATERAL vs. RIGHT).
+    """
+    PHASE_SHORT = {
+        "01_PER": "PER",
+        "02_OVU": "OVU",
+        "03_LUT": "LUT",
+    }
+ 
+    records = []
+    for phase in PHASES:
+        phase_label = PHASE_SHORT.get(phase, phase)
+        for muscle in MUSCLE_ORDER:
+            col_name = f"{SIDE}_{muscle}"
+ 
+            for cond_name, cond_trials in [
+                ("SQ bilateral", trials_bilateral),
+                ("SQ einbeinig R", trials_right),
+            ]:
+                feats = compute_trial_features(cond_trials[phase], col_name)
+                if feats:
+                    mean_rms_vals = [f["mean_rms"] for f in feats]
+                    peak_vals     = [f["peak"] for f in feats]
+                    records.append({
+                        "Phase":    phase_label,
+                        "Muskel":   muscle,
+                        "Bedingung": cond_name,
+                        "n Trials": len(feats),
+                        "Mean RMS (µV)": f"{np.mean(mean_rms_vals):.1f} ± {np.std(mean_rms_vals, ddof=1):.1f}" if len(mean_rms_vals) > 1 else f"{np.mean(mean_rms_vals):.1f}",
+                        "Peak (µV)":     f"{np.mean(peak_vals):.1f} ± {np.std(peak_vals, ddof=1):.1f}" if len(peak_vals) > 1 else f"{np.mean(peak_vals):.1f}",
+                    })
+                else:
+                    records.append({
+                        "Phase":    phase_label,
+                        "Muskel":   muscle,
+                        "Bedingung": cond_name,
+                        "n Trials": 0,
+                        "Mean RMS (µV)": "–",
+                        "Peak (µV)":     "–",
+                    })
+ 
+    df_table = pd.DataFrame(records)
+ 
+    # --- PDF mit matplotlib table ---
+    n_rows = len(df_table)
+    fig_height = max(6, 1.5 + 0.32 * n_rows)
+    fig, ax = plt.subplots(1, 1, figsize=(16, fig_height))
+    ax.axis("off")
+    ax.set_title(
+        "EMG-Aktivierung: SQ bilateral vs. einbeinig (R)\n"
+        "Roh-EMG, R-Muskulatur – Mean RMS und Peak (µV), Mittelwert ± SD über alle Trials",
+        fontsize=12, fontweight="bold", loc="left", pad=15,
+    )
+ 
+    tbl = ax.table(
+        cellText=df_table.values,
+        colLabels=df_table.columns,
+        cellLoc="center",
+        loc="upper left",
+    )
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(8)
+    tbl.auto_set_column_width(list(range(len(df_table.columns))))
+    tbl.scale(1.0, 1.4)
+ 
+    # Header-Stil
+    for col_idx in range(len(df_table.columns)):
+        tbl[0, col_idx].set_facecolor("#4a4a4a")
+        tbl[0, col_idx].set_text_props(color="white", fontweight="bold")
+ 
+    # Zebrastreifen + Farbkodierung nach Bedingung
+    for row_idx in range(1, n_rows + 1):
+        bedingung = df_table.iloc[row_idx - 1]["Bedingung"]
+        if bedingung == "SQ bilateral":
+            bg = "#e6f5f3"   # leichtes Petrol
+        else:
+            bg = "#fde8e4"   # leichtes Orange
+        # Alternierend etwas dunkler
+        if row_idx % 4 in (3, 0):
+            # Zweite Zeile derselben Phase/Muskel-Kombination
+            pass  # gleiche Farbe
+        for col_idx in range(len(df_table.columns)):
+            tbl[row_idx, col_idx].set_facecolor(bg)
+ 
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  -> Tabelle gespeichert: {out_path}")
+ 
+ 
+# ============================================================
+# HAUPTFUNKTION
+# ============================================================
+ 
+def main():
+    print("=" * 65)
+    print("SQ bilateral vs. einbeinig (R) – Roh-EMG Vergleich")
+    print("=" * 65)
+ 
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ 
+    if not DATA_DIR.exists():
+        print(f"[FEHLER] DATA_DIR nicht gefunden:\n  {DATA_DIR}")
+        return
+ 
+    subject_dirs = sorted(d for d in DATA_DIR.iterdir() if d.is_dir())
+    if not subject_dirs:
+        print("[FEHLER] Keine Subject-Ordner gefunden.")
+        return
+ 
+    # Trials sammeln: pro Phase alle Subjects poolen
+    trials_bilateral: dict[str, list[pd.DataFrame]] = {p: [] for p in PHASES}
+    trials_right:     dict[str, list[pd.DataFrame]] = {p: [] for p in PHASES}
+ 
+    for subject_dir in subject_dirs:
+        subject_id = subject_dir.name
+        print(f"\n  {subject_id}", end="")
+ 
+        for phase in PHASES:
+            phase_dir = subject_dir / phase
+ 
+            # BILATERAL
+            bil = load_all_emg_trials(phase_dir, "SQ", "BILATERAL")
+            trials_bilateral[phase].extend(bil)
+ 
+            # RIGHT
+            rgt = load_all_emg_trials(phase_dir, "SQ", "RIGHT")
+            trials_right[phase].extend(rgt)
+ 
+            n_b = len(bil)
+            n_r = len(rgt)
+            if n_b > 0 or n_r > 0:
+                print(f"  [{PHASE_LABELS.get(phase, phase).split('(')[1].rstrip(')')} "
+                      f"BIL={n_b} R={n_r}]", end="")
+ 
+    # Zusammenfassung
+    print("\n")
+    for phase in PHASES:
+        label = PHASE_LABELS.get(phase, phase)
+        print(f"  {label}: BIL={len(trials_bilateral[phase])} Trials, "
+              f"RIGHT={len(trials_right[phase])} Trials")
+ 
+    # Plot erstellen
+    out_path = OUTPUT_DIR / "sq_bilateral_vs_right_raw_emg.pdf"
+    create_comparison_plot(trials_bilateral, trials_right, out_path)
+ 
+    # Tabelle mit Mean RMS und Peak erstellen
+    table_path = OUTPUT_DIR / "sq_bilateral_vs_right_aktivierung.pdf"
+    create_activation_table(trials_bilateral, trials_right, table_path)
+ 
+    print(f"\n{'='*65}")
+    print("FERTIG")
+    print(f"{'='*65}")
+ 
+ 
+if __name__ == "__main__":
+    main()
