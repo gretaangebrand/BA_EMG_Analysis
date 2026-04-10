@@ -20,7 +20,7 @@ Verwendung in allen Skripten:
 # BASELINE-MODUS
 # ============================================================
 # Hier umschalten: 'SQ' oder 'DJ'
-BASELINE_MODE = 'DJ'
+BASELINE_MODE = 'SQ'
 
 # Soll die Baseline-Übung auch als eigenständige Übung ausgewertet werden?
 #   True  = Baseline-Übung wird NICHT ausgewertet (Standard)
