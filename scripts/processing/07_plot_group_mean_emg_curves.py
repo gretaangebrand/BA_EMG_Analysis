@@ -20,7 +20,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import sys
+sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
+from scripts.utils.config import EXERCISE_MAP
 
 # ============================================================
 # PFADE
@@ -57,12 +60,6 @@ MUSCLE_COLORS = {
 
 PHASE_COLORS = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
 
-EXERCISE_MAP = {
-    "CMJ bilateral":   ("CMJ", "BILATERAL"),
-    "CMJ einbeinig R": ("CMJ", "RIGHT"),
-    "DJ bilateral":    ("DJ",  "BILATERAL"),
-    "SQ einbeinig R":  ("SQ",  "RIGHT"),
-}
 
 N_POINTS = 101  # 0–100 %
 

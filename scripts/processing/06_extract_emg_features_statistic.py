@@ -25,7 +25,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
+import sys
+sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
+from scripts.utils.config import EXERCISE_MAP
 
 # ============================================================
 # PFADE
@@ -60,14 +63,6 @@ MUSCLE_COLORS = {
     "Semitendinosus":       "#e9c46a",
     "Gluteus Medius":       "#2a9d8f",
     "Gastrocnemius medial": "#457b9d",
-}
-
-# Mapping: Label aus 05 → (Ordner exercise, Ordner side)
-EXERCISE_MAP = {
-    "CMJ bilateral":   ("CMJ", "BILATERAL"),
-    "CMJ einbeinig R": ("CMJ", "RIGHT"),
-    "DJ bilateral":    ("DJ",  "BILATERAL"),
-    "SQ einbeinig R":  ("SQ",  "RIGHT"),
 }
 
 PHASE_COLORS = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}

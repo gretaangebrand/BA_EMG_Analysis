@@ -16,7 +16,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
+import sys
+sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
+from scripts.utils.config import TRIAL_SELECTION_CONFIGS as EXERCISE_CONFIGS
 
 # ============================================================
 # PFADE
@@ -35,18 +38,6 @@ PHASE_LABELS = {
     "02_OVU": "OVU",
     "03_LUT": "LUT",
 }
-
-# Übung → (Ordner-Name, Seite, Selektionsmethode)
-EXERCISE_CONFIGS = [
-    {"exercise": "CMJ", "side": "BILATERAL", "method": "jumpheight",
-     "label": "CMJ bilateral"},
-    {"exercise": "CMJ", "side": "RIGHT",     "method": "jumpheight",
-     "label": "CMJ einbeinig R"},
-    {"exercise": "DJ",  "side": "BILATERAL", "method": "jumpheight",
-     "label": "DJ bilateral"},
-    {"exercise": "SQ",  "side": "RIGHT",     "method": "knee_angle",
-     "label": "SQ einbeinig R"},
-]
 
 # Ausschluss von Trial in S07 wegen implausibiler Werte.
 # Format: (Subject, Übungs-Label, Phase-Label, Trial-Name-Teilstring)

@@ -22,6 +22,11 @@ Verwendung in allen Skripten:
 # Hier umschalten: 'SQ' oder 'DJ'
 BASELINE_MODE = 'DJ'
 
+# Soll die Baseline-Übung auch als eigenständige Übung ausgewertet werden?
+#   True  = Baseline-Übung wird NICHT ausgewertet (Standard)
+#   False = Baseline-Übung wird trotzdem mit ausgewertet
+EXCLUDE_BASELINE_FROM_ANALYSIS = False
+
 # Zuordnung: Mode → (Übungsordner, Seitenordner)
 BASELINE_FOLDERS = {
     'SQ': ('SQ', 'BILATERAL'),
@@ -50,9 +55,13 @@ _ALL_TRIAL_SELECTION_CONFIGS = [
 
 _baseline_ex, _baseline_side = BASELINE_FOLDERS[BASELINE_MODE]
 
+def _is_baseline(exercise: str, side: str) -> bool:
+    """Prüft ob eine Übung die aktuelle Baseline-Übung ist."""
+    return exercise == _baseline_ex and side == _baseline_side
+
 TRIAL_SELECTION_CONFIGS = [
     cfg for cfg in _ALL_TRIAL_SELECTION_CONFIGS
-    if not (cfg["exercise"] == _baseline_ex and cfg["side"] == _baseline_side)
+    if not (EXCLUDE_BASELINE_FROM_ANALYSIS and _is_baseline(cfg["exercise"], cfg["side"]))
 ]
 
 
@@ -60,7 +69,6 @@ TRIAL_SELECTION_CONFIGS = [
 # ÜBUNGEN: PIPELINE-VERARBEITUNG (Notebook 03)
 # ============================================================
 # Welche Übungen durch die EMG-Pipeline verarbeitet werden.
-# Die Baseline-Übung wird automatisch ausgeschlossen.
 
 _ALL_PIPELINE_CONFIGS = [
     {'exercise': 'CMJ', 'side_folder': 'BILATERAL', 'label': 'CMJ bilateral'},
@@ -72,7 +80,7 @@ _ALL_PIPELINE_CONFIGS = [
 
 EXERCISE_CONFIGS = [
     cfg for cfg in _ALL_PIPELINE_CONFIGS
-    if not (cfg['exercise'] == _baseline_ex and cfg['side_folder'] == _baseline_side)
+    if not (EXCLUDE_BASELINE_FROM_ANALYSIS and _is_baseline(cfg['exercise'], cfg['side_folder']))
 ]
 
 
@@ -80,7 +88,6 @@ EXERCISE_CONFIGS = [
 # EXERCISE_MAP: Label → (Ordner, Seite)
 # ============================================================
 # Verwendet in Skripten 06 und 07 für Feature-Extraktion und Plots.
-# Die Baseline-Übung wird automatisch ausgeschlossen.
 
 _ALL_EXERCISE_MAP = {
     "CMJ bilateral":   ("CMJ", "BILATERAL"),
@@ -92,7 +99,7 @@ _ALL_EXERCISE_MAP = {
 
 EXERCISE_MAP = {
     label: folders for label, folders in _ALL_EXERCISE_MAP.items()
-    if not (folders[0] == _baseline_ex and folders[1] == _baseline_side)
+    if not (EXCLUDE_BASELINE_FROM_ANALYSIS and _is_baseline(folders[0], folders[1]))
 }
 
 
@@ -102,8 +109,9 @@ EXERCISE_MAP = {
 
 def print_config():
     """Gibt die aktuelle Konfiguration aus."""
+    excl = "ja" if EXCLUDE_BASELINE_FROM_ANALYSIS else "nein (wird mit ausgewertet)"
     print(f"Baseline-Modus       : {BASELINE_MODE} ({_baseline_ex}/{_baseline_side})")
-    print(f"Baseline ausgeschl.  : {_baseline_ex}/{_baseline_side}")
+    print(f"Baseline ausschließen: {excl}")
     print(f"Pipeline-Übungen     : {[c['label'] for c in EXERCISE_CONFIGS]}")
     print(f"Trial-Selektion      : {[c['label'] for c in TRIAL_SELECTION_CONFIGS]}")
     print(f"Exercise-Map         : {list(EXERCISE_MAP.keys())}")
