@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 # ============================================================
 FEATURES_CSV = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\06_emg_features\emg_features_statistic.csv")
 OUTPUT_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\statistics")
-REPORT_PATH  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")
+#REPORT_PATH  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")
 
 # ============================================================
 # EINSTELLUNGEN
@@ -409,7 +409,7 @@ def main():
     _save_formatted_excel(df_results, OUTPUT_DIR / "statistische_ergebnisse.xlsx")
  
     # ── Pipeline-Report ──
-    _save_to_pipeline_report({"08_Statistik_Ergebnisse": df_results})
+    #_save_to_pipeline_report({"08_Statistik_Ergebnisse": df_results})
  
     # ── LaTeX-Tabellen ──
     _generate_latex_tables(df_results, OUTPUT_DIR / "latex_tabellen.tex")
@@ -729,7 +729,7 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
 # PIPELINE-REPORT
 # ============================================================
  
-def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
+"""def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     if REPORT_PATH.exists():
         from openpyxl import load_workbook
@@ -743,7 +743,7 @@ def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
         with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
             for name, dframe in sheets.items():
                 dframe.to_excel(writer, sheet_name=name, index=False)
-    print(f"  Pipeline-Report: {REPORT_PATH.name}")
+    print(f"  Pipeline-Report: {REPORT_PATH.name}")"""
  
  
 if __name__ == "__main__":
