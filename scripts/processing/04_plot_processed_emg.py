@@ -16,6 +16,8 @@ Pro Subject + Übungstyp wird eine Plot-Datei erzeugt (nur R-Seite):
   S01_CMJ_BILATERAL_processed.pdf
 
 Trials werden übereinandergelegt + Mittelwert ± SD als Band.
+
+VOR DURCHLAUF: 04_processed_emg_data mit alten Inhalten löschen!!
 """
 
 from pathlib import Path
@@ -24,6 +26,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 # import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
+
+import sys
+sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
+from scripts.utils.config import BASELINE_MODE
 
 
 # ============================================================
@@ -241,7 +247,7 @@ def create_plot(
                               label="± SD")
     baseline_handle = Line2D([0], [0], color="black", linewidth=0.8,
                              linestyle="--", alpha=0.5,
-                             label="100 % Baseline (SQ)")
+                             label="100 % Baseline ({BASELINE_MODE})")
 
     all_handles = trial_handles + [mean_handle, sd_handle, baseline_handle]
     fig.legend(
