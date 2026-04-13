@@ -535,7 +535,7 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
                     bars = ax_bar.bar(
                         x_pos, means, yerr=sds, capsize=3,
                         color=colors, alpha=0.85,
-                        edgecolor="black", linewidth=0.8,
+                        edgecolor="white", linewidth=1.0,
                         zorder=2,
                     )
                     for bar, p in zip(bars, phases_present):
@@ -543,12 +543,13 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
 
                     # Werte über Balken
                     for bar, m, s in zip(bars, means, sds):
-                        ax_bar.text(
-                            bar.get_x() + bar.get_width() / 2,
-                            bar.get_height() / 2,
-                            f"{m:.0f}", ha="center", va="center",
-                            fontsize=6.5, fontweight="bold", color="black",
-                        )
+                        ax.text(bar.get_x() + bar.get_width() * 0.85, bar.get_height() * 0.85,
+                            f"{m:.3f}", ha="right", va="top", fontsize=8,
+                            fontweight="bold", color="black")
+
+                        ax.text(bar.get_x() + bar.get_width() * 0.85, bar.get_height() * 0.85,
+                    f"{m:.3f}", ha="right", va="top", fontsize=8,
+                    fontweight="bold", color="black")
 
                     ax_bar.set_xticks(x_pos)
                     ax_bar.set_xticklabels(phases_present, fontsize=7)
