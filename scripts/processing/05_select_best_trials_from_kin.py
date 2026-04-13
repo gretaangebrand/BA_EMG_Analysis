@@ -487,6 +487,11 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
             ax.hlines(mean_val, p_idx - 0.3, p_idx + 0.3,
                       color=phase_colors.get(phase, "gray"),
                       linewidth=2.5, zorder=4)
+            ax.text(p_idx + 0.35, mean_val, f"{mean_val:.3f}",
+                    fontsize=7, fontweight="bold",
+                    color=phase_colors.get(phase, "gray"),
+                    va="center", ha="left", zorder=5)
+
  
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order)

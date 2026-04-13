@@ -38,7 +38,7 @@ PREPROCESSED_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Dat
 BEST_TRIALS_CSV = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\05_best_trials_group_and_individual\beste_trials.csv")
 OUTPUT_DIR     = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\06_emg_features")
 REPORT_PATH    = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\Pipeline_Reports.xlsx")
-
+FIGURES_DIR    = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\figures\emg_features_landing_contact_time")
 
 # ============================================================
 # EINSTELLUNGEN
@@ -325,8 +325,10 @@ def main():
     print(f"  Pipeline-Report aktualisiert: {REPORT_PATH.name}")
  
     # 6) Visualisierung
-    _create_overview_plot(df_feat, OUTPUT_DIR / "emg_features_statistic_overview.svg")
-    _create_responder_plot(df_feat, OUTPUT_DIR / "emg_features_responder.svg")
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+
+    _create_overview_plot(df_feat, FIGURES_DIR / "emg_features_statistic_overview.svg")
+    _create_responder_plot(df_feat, FIGURES_DIR / "emg_features_responder.svg")
  
     # 7) Zusammenfassung: Gruppenmittelwerte
     print(f"\n{'='*70}")
@@ -344,7 +346,7 @@ def main():
     _export_spss_wide(df_feat)
  
     # 9) Peak-Zeitpunkt: Plot + Excel-Reiter
-    _create_peak_pct_plot(df_feat, OUTPUT_DIR / "peak_zeitpunkt_pro_muskel.svg")
+    _create_peak_pct_plot(df_feat, FIGURES_DIR / "peak_zeitpunkt_pro_muskel.svg")
     _export_peak_pct_to_report(df_feat)
     
     print(f"\n{'='*70}")
@@ -463,7 +465,7 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
                 x + x_offsets[phase], means, bar_width,
                 yerr=sds, capsize=3,
                 color=PHASE_COLORS[phase], alpha=0.85,
-                label=phase, edgecolor="black", linewidth=0.5,
+                label=phase, edgecolor="white", linewidth=1.0,
                 hatch=PHASE_HATCHES.get(phase, ""),
             )
  
@@ -692,6 +694,10 @@ def _create_peak_pct_plot(df: pd.DataFrame, out_path: Path):
                         ax.hlines(mean_val, p_idx - 0.3, p_idx + 0.3,
                                   color=PHASE_COLORS[phase],
                                   linewidth=2.5, zorder=4)
+                        ax.text(p_idx + 0.35, mean_val, f"{mean_val:.0f}",
+                                fontsize=6.5, fontweight="bold",
+                                color=PHASE_COLORS[phase],
+                                va="center", ha="left", zorder=5)
  
                 ax.set_xticks(range(3))
                 ax.set_xticklabels(phase_order, fontsize=8)
