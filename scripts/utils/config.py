@@ -17,6 +17,55 @@ Verwendung in allen Skripten:
 """
 
 # ============================================================
+# FARBEN: Zyklusphasen (barrierefrei, Okabe-Ito / seaborn colorblind)
+# ============================================================
+PHASE_COLORS = {
+    "PER": "#D65D00",   # Vermillion (Rot)
+    "OVU": "#56B2E8",   # Blau 
+    "LUT": "#CC78BD",   # Pink/Lila
+}
+
+PHASE_LINESTYLES = {
+    "PER": "-",         # durchgezogen
+    "OVU": "--",        # gestrichelt
+    "LUT": "-.",        # Strich-Punkt
+}
+# ============================================================
+# MUSKELN: Reihenfolge und Farben
+# ============================================================
+# Reihenfolge: von proximal nach distal (Körper von oben nach unten)
+#   1. Gluteus Medius        – Hüfte
+#   2. Vastus Lateralis      – Oberschenkel vorne
+#   3. Biceps Femoris        – Oberschenkel hinten
+#   4. Semitendinosus        – Oberschenkel hinten (medial)
+#   5. Gastrocnemius medial  – Unterschenkel
+ 
+MUSCLE_NAMES = [
+    "Gluteus Medius",
+    "Vastus Lateralis",
+    "Biceps Femoris",
+    "Semitendinosus",
+    "Gastrocnemius medial",
+]
+ 
+# Farben: barrierefrei, keine Überschneidung mit PHASE_COLORS
+MUSCLE_COLORS = {
+    "Gluteus Medius":       "#029E73",   # Grün
+    "Vastus Lateralis":     "#DE8F05",   # Orange
+    "Biceps Femoris":       "#FAAFE3",   # Rosa \ Braun: CA9161
+    "Semitendinosus":       "#ECE133",   # Gelb
+    "Gastrocnemius medial": "#56B4E9",   # Hellblau
+}
+
+MUSCLE_LINESTYLES = {
+    "Gluteus Medius":       "-",         # durchgezogen
+    "Vastus Lateralis":     "--",        # gestrichelt
+    "Biceps Femoris":       "-.",        # Strich-Punkt
+    "Semitendinosus":       ":",         # gepunktet
+    "Gastrocnemius medial": (0, (5, 1)), # eng gestrichelt
+}
+
+# ============================================================
 # BASELINE-MODUS
 # ============================================================
 # Hier umschalten: 'SQ' oder 'DJ'

@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
-from scripts.utils.config import TRIAL_SELECTION_CONFIGS as EXERCISE_CONFIGS
+from scripts.utils.config import TRIAL_SELECTION_CONFIGS as EXERCISE_CONFIGS, PHASE_COLORS
 
 # ============================================================
 # PFADE
@@ -394,7 +394,7 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
                              sharey=False)
     axes_flat = axes.flatten() if n_ex > 1 else [axes]
 
-    phase_colors = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
+    phase_colors = PHASE_COLORS
     phase_order  = ["PER", "OVU", "LUT"]
 
     for idx, ex_name in enumerate(exercise_order):

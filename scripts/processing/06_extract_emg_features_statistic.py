@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
-from scripts.utils.config import EXERCISE_MAP
+from scripts.utils.config import EXERCISE_MAP, PHASE_COLORS, MUSCLE_COLORS, MUSCLE_NAMES, PHASE_COLORS
 
 # ============================================================
 # PFADE
@@ -48,24 +48,6 @@ PHASE_LABELS = {"01_PER": "PER", "02_OVU": "OVU", "03_LUT": "LUT"}
 PHASE_REVERSE = {v: k for k, v in PHASE_LABELS.items()}
  
 SIDE = "R"
- 
-MUSCLE_NAMES = [
-    "Vastus Lateralis",
-    "Biceps Femoris",
-    "Semitendinosus",
-    "Gluteus Medius",
-    "Gastrocnemius medial",
-]
- 
-MUSCLE_COLORS = {
-    "Vastus Lateralis":     "#f4a261",
-    "Biceps Femoris":       "#e63946",
-    "Semitendinosus":       "#e9c46a",
-    "Gluteus Medius":       "#2a9d8f",
-    "Gastrocnemius medial": "#457b9d",
-}
- 
-PHASE_COLORS = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
  
  
 # ============================================================
