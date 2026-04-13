@@ -20,9 +20,9 @@ Verwendung in allen Skripten:
 # FARBEN: Zyklusphasen (barrierefrei, Okabe-Ito / seaborn colorblind)
 # ============================================================
 PHASE_COLORS = {
-    "PER": "#D65D00",   # Vermillion (Rot)
-    "OVU": "#56B2E8",   # Blau 
-    "LUT": "#CC78BD",   # Pink/Lila
+    "PER": "#D55E00",   # Vermillion (Rot)
+    "OVU": "#0173B2",   # Blau
+    "LUT": "#CC78BC",   # Pink/Lila
 }
 
 PHASE_LINESTYLES = {
@@ -30,6 +30,15 @@ PHASE_LINESTYLES = {
     "OVU": "--",        # gestrichelt
     "LUT": "-.",        # Strich-Punkt
 }
+
+# Schraffuren für Balkendiagramme (SW-Druck)
+PHASE_HATCHES = {
+    "PER": "",          # keine Schraffur (voll gefüllt)
+    "OVU": "//",        # diagonal schraffiert
+    "LUT": "\\",        # diagonal schraffiert
+}
+
+
 # ============================================================
 # MUSKELN: Reihenfolge und Farben
 # ============================================================
@@ -39,7 +48,7 @@ PHASE_LINESTYLES = {
 #   3. Biceps Femoris        – Oberschenkel hinten
 #   4. Semitendinosus        – Oberschenkel hinten (medial)
 #   5. Gastrocnemius medial  – Unterschenkel
- 
+
 MUSCLE_NAMES = [
     "Gluteus Medius",
     "Vastus Lateralis",
@@ -47,12 +56,12 @@ MUSCLE_NAMES = [
     "Semitendinosus",
     "Gastrocnemius medial",
 ]
- 
+
 # Farben: barrierefrei, keine Überschneidung mit PHASE_COLORS
 MUSCLE_COLORS = {
     "Gluteus Medius":       "#029E73",   # Grün
     "Vastus Lateralis":     "#DE8F05",   # Orange
-    "Biceps Femoris":       "#FAAFE3",   # Rosa \ Braun: CA9161
+    "Biceps Femoris":       "#CA9161",   # Braun
     "Semitendinosus":       "#ECE133",   # Gelb
     "Gastrocnemius medial": "#56B4E9",   # Hellblau
 }
@@ -65,16 +74,17 @@ MUSCLE_LINESTYLES = {
     "Gastrocnemius medial": (0, (5, 1)), # eng gestrichelt
 }
 
+
 # ============================================================
 # BASELINE-MODUS
 # ============================================================
 # Hier umschalten: 'SQ' oder 'DJ'
-BASELINE_MODE = 'DJ'
+BASELINE_MODE = 'SQ'
 
 # Soll die Baseline-Übung auch als eigenständige Übung ausgewertet werden?
 #   True  = Baseline-Übung wird NICHT ausgewertet (Standard)
 #   False = Baseline-Übung wird trotzdem mit ausgewertet
-EXCLUDE_BASELINE_FROM_ANALYSIS = False
+EXCLUDE_BASELINE_FROM_ANALYSIS = True
 
 # Zuordnung: Mode → (Übungsordner, Seitenordner)
 BASELINE_FOLDERS = {

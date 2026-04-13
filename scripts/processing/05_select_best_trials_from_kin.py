@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
-from scripts.utils.config import TRIAL_SELECTION_CONFIGS as EXERCISE_CONFIGS, PHASE_COLORS
+from scripts.utils.config import TRIAL_SELECTION_CONFIGS as EXERCISE_CONFIGS, PHASE_COLORS, PHASE_HATCHES
 
 # ============================================================
 # PFADE
@@ -39,7 +39,7 @@ PHASE_LABELS = {
     "03_LUT": "LUT",
 }
 
-# Ausschluss von Trial in S07 wegen implausibiler Werte.
+# Ausschluss von einzelnen Trials
 # Format: (Subject, Übungs-Label, Phase-Label, Trial-Name-Teilstring)
 # Begründung wird als Kommentar dokumentiert.
 EXCLUDED_TRIALS = [
@@ -61,8 +61,8 @@ EXCLUDED_TRIALS = [
     ("S09", "CMJ bilateral", "LUT", "CMJ_03"),
 
     # S02, CMJ einbeinig R, LUT, Trials 01+02: fehlerhafte Aufnahme rechtes Bein
-    ("S02", "CMJ einbeinig R", "LUT", "CMJ_01"),
-    ("S02", "CMJ einbeinig R", "LUT", "CMJ_02"),
+    ("S02", "CMJ einbeinig R", "LUT", "CMJ_R_01"),
+    ("S02", "CMJ einbeinig R", "LUT", "CMJ_R_02"),
 ]
 
 
@@ -317,25 +317,25 @@ def main():
 # ============================================================
 # VISUALISIERUNGEN
 # ============================================================
-
+ 
 def _create_overview_pdf(df_best: pd.DataFrame, df_group: pd.DataFrame,
                          out_path: Path):
     """Übersichtstabelle mit individuellen besten Trials + Gruppenmittelwerten."""
-
+ 
     # Tabelle 1: Gruppenmittelwerte
     group_display = df_group.copy()
     group_display["Mittelwert ± SD"] = group_display.apply(
         lambda r: f"{r['Mittelwert']:.3f} ± {r['SD']:.3f}", axis=1
     )
     tab1 = group_display[["Übung", "Phase", "Mittelwert ± SD", "n"]]
-
+ 
     # Tabelle 2: Individuelle beste Trials
     best_display = df_best[["Subject", "Übung", "Phase", "Bester Trial", "Wert", "Einheit"]].copy()
     best_display["Wert"] = best_display.apply(
         lambda r: f"{r['Wert']:.3f} {r['Einheit']}", axis=1
     )
     tab2 = best_display[["Subject", "Übung", "Phase", "Bester Trial", "Wert"]]
-
+ 
     # Layout
     n1, n2 = len(tab1), len(tab2)
     fig_h = max(5, 1.5 + 0.35 * n1 + 0.35 * n2)
@@ -343,14 +343,14 @@ def _create_overview_pdf(df_best: pd.DataFrame, df_group: pd.DataFrame,
         2, 1, figsize=(14, fig_h),
         gridspec_kw={"height_ratios": [max(1, 1 + n1), max(1, 1 + n2)]},
     )
-
+ 
     for ax, title, data in [
         (ax1, "Gruppenmittelwerte (beste Trials pro Subject × Phase)", tab1),
         (ax2, "Individuelle beste Trials", tab2),
     ]:
         ax.axis("off")
         ax.set_title(title, fontsize=11, fontweight="bold", loc="left", pad=10)
-
+ 
         tbl = ax.table(
             cellText=data.values,
             colLabels=data.columns,
@@ -360,22 +360,22 @@ def _create_overview_pdf(df_best: pd.DataFrame, df_group: pd.DataFrame,
         tbl.auto_set_font_size(False)
         tbl.set_fontsize(8)
         tbl.scale(1.0, 1.35)
-
+ 
         for col_idx in range(len(data.columns)):
             tbl[0, col_idx].set_facecolor("#4472C4")
             tbl[0, col_idx].set_text_props(color="white", fontweight="bold")
-
+ 
         for row_idx in range(1, len(data) + 1):
             bg = "#F2F2F2" if row_idx % 2 == 0 else "white"
             for col_idx in range(len(data.columns)):
                 tbl[row_idx, col_idx].set_facecolor(bg)
-
+ 
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  PDF (Übersicht) : {out_path.name}")
-
-
+ 
+ 
 def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
     """Balkendiagramm: Mittelwert ± SD pro Übung und Phase. Layout 2×2."""
     exercise_order = [
@@ -384,59 +384,62 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
     ]
     exercise_order = [e for e in exercise_order if e in df_group["Übung"].values]
     n_ex = len(exercise_order)
-
+ 
     if n_ex <= 2:
         n_rows, n_cols = 1, n_ex
     else:
         n_rows, n_cols = 2, 2
-
+ 
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.5 * n_cols, 5 * n_rows),
                              sharey=False)
     axes_flat = axes.flatten() if n_ex > 1 else [axes]
-
+ 
     phase_colors = PHASE_COLORS
     phase_order  = ["PER", "OVU", "LUT"]
-
+ 
     for idx, ex_name in enumerate(exercise_order):
         ax = axes_flat[idx]
         sub = df_group[df_group["Übung"] == ex_name]
         sub = sub.set_index("Phase").reindex(phase_order).reset_index()
         sub = sub.dropna(subset=["Mittelwert"])
-
+ 
         phases = sub["Phase"].values
         means  = sub["Mittelwert"].values
         sds    = sub["SD"].values
-
+ 
         bars = ax.bar(
             phases, means,
             yerr=sds, capsize=5,
             color=[phase_colors.get(p, "gray") for p in phases],
-            edgecolor="white", linewidth=1.2,
+            edgecolor="white", linewidth=1.0,
             alpha=0.85, zorder=2,
         )
-
+        for bar, p in zip(bars, phases):
+            bar.set_hatch(PHASE_HATCHES.get(p, ""))
+ 
         for bar, m, s in zip(bars, means, sds):
             unit = "m" if "CMJ" in ex_name or "DJ" in ex_name else "°"
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + s + 0.002,
-                    f"{m:.3f}", ha="center", va="bottom", fontsize=9, fontweight="bold")
-
+            ax.text(bar.get_x() + bar.get_width() * 0.85, bar.get_height() * 0.85,
+                    f"{m:.3f}", ha="right", va="top", fontsize=8,
+                    fontweight="bold", color="black")
+ 
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
         ax.set_ylabel(unit, fontsize=10)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
-
+ 
     for idx in range(n_ex, len(axes_flat)):
         axes_flat[idx].set_visible(False)
-
+ 
     fig.suptitle("Gruppenmittelwerte der besten Trials", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  SVG (Balken)    : {out_path.name}")
-
-
+ 
+ 
 def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
     """Stripplot: individuelle Werte der besten Trials pro Übung × Phase.
     Layout 2×2: CMJs oben, DJ + SQ unten."""
@@ -448,43 +451,43 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
     # Nur vorhandene Übungen behalten
     exercise_order = [e for e in exercise_order if e in df_best["Übung"].values]
     n_ex = len(exercise_order)
-
+ 
     if n_ex <= 2:
         n_rows, n_cols = 1, n_ex
     else:
         n_rows, n_cols = 2, 2
-
+ 
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.5 * n_cols, 5 * n_rows),
                              sharey=False)
     axes_flat = axes.flatten() if n_ex > 1 else [axes]
-
-    phase_colors = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
+ 
+    phase_colors = PHASE_COLORS
     phase_order  = ["PER", "OVU", "LUT"]
-
+ 
     for idx, ex_name in enumerate(exercise_order):
         ax = axes_flat[idx]
         sub = df_best[df_best["Übung"] == ex_name]
-
+ 
         for p_idx, phase in enumerate(phase_order):
             phase_data = sub[sub["Phase"] == phase]
             if phase_data.empty:
                 continue
-
+ 
             vals = phase_data["Wert"].values
             # Jittered x-Positionen
             x = np.full_like(vals, p_idx, dtype=float)
             x += np.random.uniform(-0.15, 0.15, size=len(vals))
-
+ 
             ax.scatter(x, vals, color=phase_colors.get(phase, "gray"),
                        s=45, alpha=0.75, edgecolors="white", linewidth=0.5,
                        zorder=3)
-
+ 
             # Mittelwert als horizontale Linie
             mean_val = vals.mean()
             ax.hlines(mean_val, p_idx - 0.3, p_idx + 0.3,
                       color=phase_colors.get(phase, "gray"),
                       linewidth=2.5, zorder=4)
-
+ 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order)
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
@@ -493,27 +496,27 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
-
+ 
     # Leere Subplots ausblenden (falls n_ex < 4)
     for idx in range(n_ex, len(axes_flat)):
         axes_flat[idx].set_visible(False)
-
+ 
     fig.suptitle("Individuelle beste Trials (pro Probandin × Phase)",
                  fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  SVG (Stripplot) : {out_path.name}")
-
-
+ 
+ 
 def _create_availability_plot(df_best: pd.DataFrame, out_path: Path):
     """
     Balkendiagramm: Anzahl Probandinnen mit bestem Trial pro Übung × Phase.
     Zeigt auf einen Blick, wo Daten vollständig sind und wo nicht.
     """
     phase_order  = ["PER", "OVU", "LUT"]
-    phase_colors = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
-
+    phase_colors = PHASE_COLORS
+ 
     # Zähle unique Subjects pro Übung × Phase
     counts = (
         df_best
@@ -521,39 +524,42 @@ def _create_availability_plot(df_best: pd.DataFrame, out_path: Path):
         .nunique()
         .reset_index(name="n_subjects")
     )
-
+ 
     # Gesamtzahl Subjects (für Referenzlinie)
     n_total = df_best["Subject"].nunique()
-
+ 
     exercises = sorted(df_best["Übung"].unique())
     n_ex = len(exercises)
-
+ 
     bar_width = 0.25
     x = np.arange(n_ex)
-
+ 
     fig, ax = plt.subplots(figsize=(10, 5))
-
+ 
     for i, phase in enumerate(phase_order):
         vals = []
         for ex in exercises:
             row = counts[(counts["Übung"] == ex) & (counts["Phase"] == phase)]
             vals.append(int(row["n_subjects"].values[0]) if len(row) > 0 else 0)
-
+ 
         bars = ax.bar(
             x + i * bar_width, vals, bar_width,
             color=phase_colors[phase], edgecolor="white",
-            linewidth=1.0, alpha=0.85, label=phase, zorder=2,
+            linewidth=0.8, alpha=0.85, label=phase, zorder=2,
         )
-
-        # Anzahl über Balken
+        for bar in bars:
+            bar.set_hatch(PHASE_HATCHES.get(phase, ""))
+ 
+        # Anzahl im Balken
         for bar, v in zip(bars, vals):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.15,
-                    str(v), ha="center", va="bottom", fontsize=10, fontweight="bold")
-
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() / 2,
+                    str(v), ha="center", va="center", fontsize=10,
+                    fontweight="bold", color="black")
+ 
     # Referenzlinie: Gesamtzahl Subjects
     ax.axhline(y=n_total, color="black", linewidth=1.0, linestyle="--",
                alpha=0.5, zorder=1, label=f"Gesamt ({n_total} Probandinnen)")
-
+ 
     ax.set_xticks(x + bar_width)
     ax.set_xticklabels(exercises, fontsize=10)
     ax.set_ylabel("Anzahl Probandinnen mit bestem Trial", fontsize=11)
@@ -563,15 +569,15 @@ def _create_availability_plot(df_best: pd.DataFrame, out_path: Path):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", alpha=0.3)
-
+ 
     fig.suptitle("Verfügbarkeit der besten Trials pro Übung und Zyklusphase",
                  fontsize=13, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  SVG (Verfügb.)  : {out_path.name}")
-
-
+ 
+ 
 def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
     """
     Pro Übung: Jede Probandin als verbundene Linie über die 3 Phasen.
@@ -579,65 +585,65 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
     Layout 2×2: CMJs oben, DJ + SQ unten. Häufigkeitstabelle unter jedem Subplot.
     """
     phase_order  = ["PER", "OVU", "LUT"]
-    phase_colors = {"PER": "#C44462", "OVU": "#0EB55F", "LUT": "#FAD758"}
+    phase_colors = PHASE_COLORS
     phase_x      = {p: i for i, p in enumerate(phase_order)}
-
+ 
     exercise_order = [
         "CMJ bilateral", "CMJ einbeinig R",
         "DJ bilateral",  "SQ einbeinig R",
     ]
     exercise_order = [e for e in exercise_order if e in df_best["Übung"].values]
     n_ex = len(exercise_order)
-
+ 
     if n_ex <= 2:
         n_rows, n_cols = 1, n_ex
     else:
         n_rows, n_cols = 2, 2
-
+ 
     # Pro Übung: Plot-Zeile + Tabellen-Zeile → doppelte Anzahl Zeilen
     fig, axes = plt.subplots(
         n_rows * 2, n_cols, figsize=(5.5 * n_cols, 6 * n_rows),
         gridspec_kw={"height_ratios": [4, 1] * n_rows},
     )
-
+ 
     for idx, ex_name in enumerate(exercise_order):
         grid_row = (idx // n_cols) * 2   # Plot-Zeile (0 oder 2)
         grid_col = idx % n_cols           # Spalte (0 oder 1)
-
+ 
         ax       = axes[grid_row, grid_col]
         ax_table = axes[grid_row + 1, grid_col]
-
+ 
         sub = df_best[df_best["Übung"] == ex_name]
         subjects = sorted(sub["Subject"].unique())
-
+ 
         peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
         higher_is_better = True
-
+ 
         for s_idx, subj in enumerate(subjects):
             subj_data = sub[sub["Subject"] == subj]
-
+ 
             vals = {}
             for phase in phase_order:
                 row = subj_data[subj_data["Phase"] == phase]
                 if not row.empty:
                     vals[phase] = float(row["Wert"].values[0])
-
+ 
             if not vals:
                 continue
-
+ 
             if higher_is_better:
                 best_phase = max(vals, key=vals.get)
             else:
                 best_phase = min(vals, key=vals.get)
             peak_phase_counts[best_phase] += 1
-
+ 
             x_pts = [phase_x[p] for p in phase_order if p in vals]
             y_pts = [vals[p] for p in phase_order if p in vals]
-
+ 
             ax.plot(x_pts, y_pts,
                     color="#adb5bd", linewidth=1.0, alpha=0.6,
                     zorder=2)
-
+ 
             for phase, val in vals.items():
                 is_best = (phase == best_phase)
                 ax.scatter(
@@ -649,14 +655,14 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
                     linewidth=1.5 if is_best else 0.5,
                     zorder=4 if is_best else 3,
                 )
-
+ 
             best_val = vals[best_phase]
             ax.annotate(
                 subj, xy=(phase_x[best_phase], best_val),
                 fontsize=6.5, color="#333333", alpha=0.85,
                 xytext=(6, 2), textcoords="offset points",
             )
-
+ 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
@@ -665,7 +671,7 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
-
+ 
         # Häufigkeitstabelle
         ax_table.axis("off")
         table_data = [[peak_phase_counts[p] for p in phase_order]]
@@ -679,19 +685,19 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
         tbl.auto_set_font_size(False)
         tbl.set_fontsize(10)
         tbl.scale(1.0, 1.8)
-
+ 
         for j, phase in enumerate(phase_order):
             tbl[0, j].set_facecolor(phase_colors[phase])
             tbl[0, j].set_text_props(color="white", fontweight="bold")
             tbl[1, j].set_text_props(fontweight="bold", fontsize=12)
-
+ 
     # Leere Subplots ausblenden
     for idx in range(n_ex, n_rows * n_cols):
         grid_row = (idx // n_cols) * 2
         grid_col = idx % n_cols
         axes[grid_row, grid_col].set_visible(False)
         axes[grid_row + 1, grid_col].set_visible(False)
-
+ 
     fig.suptitle(
         "Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n"
         "(großer Punkt = absolute Bestleistung über alle 3 Phasen)",
@@ -701,7 +707,7 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  SVG (Bestleist.): {out_path.name}")
-
-
+ 
+ 
 if __name__ == "__main__":
     main()

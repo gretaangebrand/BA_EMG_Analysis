@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
 
-from scripts.utils.config import EXERCISE_MAP, PHASE_COLORS, MUSCLE_COLORS, MUSCLE_NAMES, PHASE_COLORS
+from scripts.utils.config import EXERCISE_MAP, PHASE_COLORS, MUSCLE_NAMES, PHASE_COLORS, PHASE_HATCHES
 
 # ============================================================
 # PFADE
@@ -459,11 +459,12 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
                 means.append(vals.mean() if len(vals) > 0 else 0)
                 sds.append(vals.std() if len(vals) > 1 else 0)
  
-            ax.bar(
+            bars = ax.bar(
                 x + x_offsets[phase], means, bar_width,
                 yerr=sds, capsize=3,
                 color=PHASE_COLORS[phase], alpha=0.85,
-                label=phase, edgecolor="white", linewidth=0.5,
+                label=phase, edgecolor="black", linewidth=0.5,
+                hatch=PHASE_HATCHES.get(phase, ""),
             )
  
         ax.set_title(ex_name, fontsize=12, fontweight="bold")

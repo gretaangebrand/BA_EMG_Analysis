@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA
 
 from scripts.utils.config import (
     EXERCISE_MAP, MUSCLE_NAMES, MUSCLE_COLORS, MUSCLE_LINESTYLES,
-    PHASE_COLORS, PHASE_LINESTYLES,
+    PHASE_COLORS, PHASE_LINESTYLES, PHASE_HATCHES
 )
 
 # ============================================================
@@ -535,17 +535,19 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
                     bars = ax_bar.bar(
                         x_pos, means, yerr=sds, capsize=3,
                         color=colors, alpha=0.85,
-                        edgecolor="white", linewidth=0.8,
+                        edgecolor="black", linewidth=0.8,
                         zorder=2,
                     )
+                    for bar, p in zip(bars, phases_present):
+                        bar.set_hatch(PHASE_HATCHES.get(p, ""))
 
                     # Werte über Balken
                     for bar, m, s in zip(bars, means, sds):
                         ax_bar.text(
                             bar.get_x() + bar.get_width() / 2,
-                            bar.get_height() + s + 0.5,
-                            f"{m:.0f}", ha="center", va="bottom",
-                            fontsize=6.5, fontweight="bold",
+                            bar.get_height() / 2,
+                            f"{m:.0f}", ha="center", va="center",
+                            fontsize=6.5, fontweight="bold", color="black",
                         )
 
                     ax_bar.set_xticks(x_pos)
@@ -610,7 +612,7 @@ def plot_all_muscles_by_phase_with_trials(curves, events, out_dir):
 
                 # Einzelne Trials als Linien
                 for i, arr in enumerate(arrays):
-                    ax.plot(pct, arr, color=color, linewidth=0.8,
+                    ax.plot(pct, arr, color=color, linewidth=1,
                             linestyle=ls, alpha=0.45, zorder=1,
                             label=muscle if i == 0 else None)
 
@@ -695,7 +697,7 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
 
                 # Einzelne Trials als Linien
                 for i, arr in enumerate(arrays):
-                    ax.plot(pct, arr, color=color, linewidth=0.8,
+                    ax.plot(pct, arr, color=color, linewidth=1,
                             linestyle=ls, alpha=0.40, zorder=1,
                             label=f"{phase} (n={len(arrays)})" if i == 0 else None)
 
