@@ -79,12 +79,12 @@ MUSCLE_LINESTYLES = {
 # BASELINE-MODUS
 # ============================================================
 # Hier umschalten: 'SQ' oder 'DJ'
-BASELINE_MODE = 'SQ'
+BASELINE_MODE = 'DJ'
 
 # Soll die Baseline-Übung auch als eigenständige Übung ausgewertet werden?
 #   True  = Baseline-Übung wird NICHT ausgewertet (Standard)
 #   False = Baseline-Übung wird trotzdem mit ausgewertet
-EXCLUDE_BASELINE_FROM_ANALYSIS = True
+EXCLUDE_BASELINE_FROM_ANALYSIS = False
 
 # Zuordnung: Mode → (Übungsordner, Seitenordner)
 BASELINE_FOLDERS = {
