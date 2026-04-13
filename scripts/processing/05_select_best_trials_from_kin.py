@@ -49,10 +49,16 @@ EXCLUDED_TRIALS = [
     # S06, CMJ bilateral, OVU, Trial 01: unsaubere Landung auf Kraftmessplatte
     ("S06", "CMJ bilateral", "OVU", "CMJ_01"),
 
-    # S09, CMJ bilateral, OVU: alle drei Trials – Kraftmessplattendaten nicht verwertbar
+    # S09, CMJ bilateral: alle Phasen – Kraftmessplattendaten nicht verwertbar
+    ("S09", "CMJ bilateral", "PER", "CMJ_01"),
+    ("S09", "CMJ bilateral", "PER", "CMJ_02"),
+    ("S09", "CMJ bilateral", "PER", "CMJ_03"),
     ("S09", "CMJ bilateral", "OVU", "CMJ_01"),
     ("S09", "CMJ bilateral", "OVU", "CMJ_02"),
     ("S09", "CMJ bilateral", "OVU", "CMJ_03"),
+    ("S09", "CMJ bilateral", "LUT", "CMJ_01"),
+    ("S09", "CMJ bilateral", "LUT", "CMJ_02"),
+    ("S09", "CMJ bilateral", "LUT", "CMJ_03"),
 
     # S02, CMJ einbeinig R, LUT, Trials 01+02: fehlerhafte Aufnahme rechtes Bein
     ("S02", "CMJ einbeinig R", "LUT", "CMJ_01"),
