@@ -12,6 +12,7 @@ Gibt eine Übersichtstabelle als PDF und CSV aus (individuell + Gruppenmittelwer
 """
 
 from pathlib import Path
+from collections import Counter
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,6 +38,28 @@ PHASE_LABELS = {
     "01_PER": "PER",
     "02_OVU": "OVU",
     "03_LUT": "LUT",
+}
+
+# Chronologische Testreihenfolge pro Probandin
+# Wert = Phasen in chronologischer Reihenfolge (1., 2., 3. Messzeitpunkt)
+# Standard: PER → OVU → LUT
+CHRONOLOGICAL_ORDER = {
+    "S01": ["LUT", "PER", "OVU"],
+    "S06": ["OVU", "PER", "LUT"],
+    "S08": ["OVU", "LUT", "PER"],
+}
+DEFAULT_CHRONO_ORDER = ["PER", "OVU", "LUT"]
+
+# Übungsreihenfolge für Bestleistungstabelle
+BESTLEISTUNG_EXERCISE_ORDER = [
+    "CMJ bilateral", "CMJ einbeinig R", "DJ bilateral", "SQ bilateral", "SQ einbeinig R",
+]
+
+# LaTeX-Farben für Phasen (Pastell-Versionen für Tabellenhintergrund)
+PHASE_LATEX_COLORS = {
+    "PER": r"\cellcolor{percolor}",
+    "OVU": r"\cellcolor{ovucolor}",
+    "LUT": r"\cellcolor{lutcolor}",
 }
 
 # Ausschluss von einzelnen Trials
@@ -307,6 +330,33 @@ def main():
     # ── Plot: Bestleistung pro Probandin – in welcher Phase? ──────────────
     _create_peak_phase_plot(df_best, FIGURES_DIR / "bestleistung_pro_probandin.svg")
 
+     # ── Bestleistungsvergleich über Übungen + LaTeX-Tabelle ──────────
+    table_df = _build_best_phase_table(df_best)
+    _generate_latex_table(table_df, FIGURES_DIR / "bestleistung_phase_mzp.tex")
+    _create_enhanced_peak_phase_plot(
+        df_best, table_df,
+        FIGURES_DIR / "bestleistung_pro_probandin_erweitert.svg",
+    )
+
+    # Konsolenausgabe: Bestleistungsphase + MZP
+    print(f"\n{'='*70}")
+    print("BESTLEISTUNGSPHASE UND MESSZEITPUNKT")
+    print(f"{'='*70}")
+    for _, row in table_df.iterrows():
+        subj = row["Subject"]
+        parts = []
+        for ex in BESTLEISTUNG_EXERCISE_ORDER:
+            p = row[f"{ex}_phase"]
+            s = row[f"{ex}_session"]
+            if p != "—":
+                parts.append(f"{ex[:6]:>6s}: {p}(MZP{s})")
+            else:
+                parts.append(f"{ex[:6]:>6s}: —")
+        dominant = row["dominant_phase"]
+        count = row["dominant_count"]
+        cons = f"→ {count} in {dominant}" if dominant != "—" else "→ keine"
+        print(f"  {subj}:  {'  |  '.join(parts)}  {cons}")
+
     print(f"\n{'='*70}")
     print("FERTIG")
     print(f"  CSV-Ordner      : {OUTPUT_DIR}")
@@ -377,18 +427,20 @@ def _create_overview_pdf(df_best: pd.DataFrame, df_group: pd.DataFrame,
  
  
 def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
-    """Balkendiagramm: Mittelwert ± SD pro Übung und Phase. Layout 2×2."""
+    """Balkendiagramm: Mittelwert ± SD pro Übung und Phase."""
     exercise_order = [
         "CMJ bilateral", "CMJ einbeinig R",
-        "DJ bilateral",  "SQ einbeinig R",
+        "DJ bilateral",  "SQ bilateral", "SQ einbeinig R",
     ]
     exercise_order = [e for e in exercise_order if e in df_group["Übung"].values]
     n_ex = len(exercise_order)
  
     if n_ex <= 2:
         n_rows, n_cols = 1, n_ex
-    else:
+    elif n_ex <= 4:
         n_rows, n_cols = 2, 2
+    else:
+        n_rows, n_cols = 3, 2
  
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.5 * n_cols, 5 * n_rows),
                              sharey=False)
@@ -441,12 +493,11 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
  
  
 def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
-    """Stripplot: individuelle Werte der besten Trials pro Übung × Phase.
-    Layout 2×2: CMJs oben, DJ + SQ unten."""
+    """Stripplot: individuelle Werte der besten Trials pro Übung × Phase."""
     # Feste Reihenfolge: CMJs oben, DJ + SQ unten
     exercise_order = [
         "CMJ bilateral", "CMJ einbeinig R",
-        "DJ bilateral",  "SQ einbeinig R",
+        "DJ bilateral",  "SQ bilateral", "SQ einbeinig R",
     ]
     # Nur vorhandene Übungen behalten
     exercise_order = [e for e in exercise_order if e in df_best["Übung"].values]
@@ -454,8 +505,10 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
  
     if n_ex <= 2:
         n_rows, n_cols = 1, n_ex
-    else:
+    elif n_ex <= 4:
         n_rows, n_cols = 2, 2
+    else:
+        n_rows, n_cols = 3, 2
  
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.5 * n_cols, 5 * n_rows),
                              sharey=False)
@@ -595,15 +648,17 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
  
     exercise_order = [
         "CMJ bilateral", "CMJ einbeinig R",
-        "DJ bilateral",  "SQ einbeinig R",
+        "DJ bilateral",  "SQ bilateral", "SQ einbeinig R",
     ]
     exercise_order = [e for e in exercise_order if e in df_best["Übung"].values]
     n_ex = len(exercise_order)
  
     if n_ex <= 2:
         n_rows, n_cols = 1, n_ex
-    else:
+    elif n_ex <= 4:
         n_rows, n_cols = 2, 2
+    else:
+        n_rows, n_cols = 3, 2
  
     # Pro Übung: Plot-Zeile + Tabellen-Zeile → doppelte Anzahl Zeilen
     fig, axes = plt.subplots(
@@ -712,7 +767,308 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  SVG (Bestleist.): {out_path.name}")
- 
+
+# ============================================================
+# BESTLEISTUNGS-VERGLEICH: TABELLE + ERWEITERTER PLOT
+# ============================================================
+
+def _get_chronological_session(subject: str, phase: str) -> int:
+    """
+    Gibt den chronologischen Messzeitpunkt (1, 2 oder 3) zurück,
+    an dem die gegebene Phase getestet wurde.
+    """
+    order = CHRONOLOGICAL_ORDER.get(subject, DEFAULT_CHRONO_ORDER)
+    try:
+        return order.index(phase) + 1
+    except ValueError:
+        return 0
+
+
+def _build_best_phase_table(df_best: pd.DataFrame) -> pd.DataFrame:
+    """
+    Übersichtstabelle: Pro Subject und Übung die Phase der Bestleistung
+    + chronologischer Messzeitpunkt + Konsistenz über Übungen.
+    """
+    all_subjects = sorted(df_best["Subject"].unique())
+    records = []
+
+    for subj in all_subjects:
+        row = {"Subject": subj}
+        subj_data = df_best[df_best["Subject"] == subj]
+
+        for ex in BESTLEISTUNG_EXERCISE_ORDER:
+            ex_data = subj_data[subj_data["Übung"] == ex]
+
+            if ex_data.empty:
+                row[f"{ex}_phase"] = "—"
+                row[f"{ex}_session"] = "—"
+                row[f"{ex}_value"] = "—"
+                continue
+
+            best_idx = ex_data["Wert"].idxmax()
+            best_row = ex_data.loc[best_idx]
+            best_phase = best_row["Phase"]
+            best_value = best_row["Wert"]
+            session = _get_chronological_session(subj, best_phase)
+
+            row[f"{ex}_phase"] = best_phase
+            row[f"{ex}_session"] = str(session)
+            row[f"{ex}_value"] = f"{best_value:.3f}"
+
+        # Dominante Phase: in wie vielen Übungen die gleiche Phase?
+        phases = [row[f"{ex}_phase"] for ex in BESTLEISTUNG_EXERCISE_ORDER
+                  if row[f"{ex}_phase"] not in ("—", None)]
+        if phases:
+            phase_counts = Counter(phases)
+            dominant_phase, dominant_count = phase_counts.most_common(1)[0]
+            row["dominant_phase"] = dominant_phase if dominant_count > 1 else "—"
+            row["dominant_count"] = f"{dominant_count}/{len(phases)}"
+        else:
+            row["dominant_phase"] = "—"
+            row["dominant_count"] = "—"
+
+        records.append(row)
+
+    return pd.DataFrame(records)
+
+
+def _generate_latex_table(table_df: pd.DataFrame, out_path: Path):
+    """
+    Generiert eine LaTeX-Tabelle mit Farbcodierung der Phasen
+    und speichert sie als .tex-Datei.
+    """
+    ex_short = {
+        "CMJ bilateral": "CMJ bil.",
+        "CMJ einbeinig R": "CMJ einb.",
+        "DJ bilateral": "DJ bil.",
+        "SQ bilateral": "SQ bil.",
+        "SQ einbeinig R": "SQ einb.",
+    }
+
+    lines = []
+    lines.append(r"% === Benötigte Pakete und Farbdefinitionen (in Preamble einfügen) ===")
+    lines.append(r"% \usepackage{xcolor}")
+    lines.append(r"% \usepackage{colortbl}")
+    lines.append(r"% \usepackage{booktabs}")
+    lines.append(r"% \usepackage{multirow}")
+    lines.append(r"% \definecolor{percolor}{HTML}{FDDBC7}  % PER: helles Rot/Orange")
+    lines.append(r"% \definecolor{ovucolor}{HTML}{C6DBEF}  % OVU: helles Blau")
+    lines.append(r"% \definecolor{lutcolor}{HTML}{E8D5E0}  % LUT: helles Lila/Pink")
+    lines.append(r"% =====================================================================")
+    lines.append("")
+
+    n_ex = len(BESTLEISTUNG_EXERCISE_ORDER)
+    col_spec = "l" + "cc" * n_ex + "c"
+
+    lines.append(r"\begin{table}[htbp]")
+    lines.append(r"  \centering")
+    lines.append(r"  \caption{Zyklusphase und chronologischer Messzeitpunkt (MZP) der individuellen "
+                 r"Bestleistung pro \"Ubung. Farbige Zellen kennzeichnen die Phase der Bestleistung "
+                 r"(\colorbox{percolor}{PER}, \colorbox{ovucolor}{OVU}, \colorbox{lutcolor}{LUT}). "
+                 r"Die Spalte \emph{Konsistenz} gibt an, in wie vielen \"Ubungen die Bestleistung "
+                 r"in derselben Phase erzielt wurde.}")
+    lines.append(r"  \label{tab:bestleistung_phase_mzp}")
+    lines.append(r"  \small")
+    lines.append(f"  \\begin{{tabular}}{{{col_spec}}}")
+    lines.append(r"    \toprule")
+
+    # Header Zeile 1
+    header1 = r"    "
+    for ex in BESTLEISTUNG_EXERCISE_ORDER:
+        header1 += r" & \multicolumn{2}{c}{" + ex_short[ex] + r"}"
+    header1 += r" & \multirow{2}{*}{Konsistenz} \\"
+    lines.append(header1)
+
+    cmidrules = "    "
+    for i in range(n_ex):
+        col_start = 2 + i * 2
+        col_end = col_start + 1
+        cmidrules += f"\\cmidrule(lr){{{col_start}-{col_end}}} "
+    lines.append(cmidrules)
+
+    # Header Zeile 2
+    header2 = r"    Probandin"
+    for _ in BESTLEISTUNG_EXERCISE_ORDER:
+        header2 += r" & Phase & MZP"
+    header2 += r" & \\"
+    lines.append(header2)
+    lines.append(r"    \midrule")
+
+    # Datenzeilen
+    for _, row in table_df.iterrows():
+        subj = row["Subject"]
+        line = f"    {subj}"
+
+        for ex in BESTLEISTUNG_EXERCISE_ORDER:
+            phase = row[f"{ex}_phase"]
+            session = row[f"{ex}_session"]
+
+            if phase in PHASE_LATEX_COLORS:
+                line += f" & {PHASE_LATEX_COLORS[phase]}{phase} & {session}"
+            else:
+                line += f" & {phase} & {session}"
+
+        dominant = row["dominant_phase"]
+        count = row["dominant_count"]
+        if dominant in PHASE_LATEX_COLORS:
+            line += f" & {PHASE_LATEX_COLORS[dominant]}{count}"
+        else:
+            line += f" & {count}"
+
+        line += r" \\"
+        lines.append(line)
+
+    lines.append(r"    \bottomrule")
+    lines.append(r"  \end{tabular}")
+    lines.append(r"\end{table}")
+
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"  LaTeX-Tabelle   : {out_path.name}")
+
+
+def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
+                                     table_df: pd.DataFrame,
+                                     out_path: Path):
+    """
+    Erweiterter Bestleistungs-Plot:
+    - Grundplot wie Original (graue Linien, großer Punkt = Bestleistung)
+    - Konsistenz nur subtil: fett gedrucktes Label + etwas dickerer Rand
+    - Kein MZP im Plot (steht in der LaTeX-Tabelle)
+    """
+    phase_order  = ["PER", "OVU", "LUT"]
+    phase_colors = PHASE_COLORS
+    phase_x      = {p: i for i, p in enumerate(phase_order)}
+
+    exercise_order = [e for e in BESTLEISTUNG_EXERCISE_ORDER
+                      if e in df_best["Übung"].values]
+    n_ex = len(exercise_order)
+
+    if n_ex <= 2:
+        n_rows, n_cols = 1, n_ex
+    elif n_ex <= 4:
+        n_rows, n_cols = 2, 2
+    else:
+        n_rows, n_cols = 3, 2
+
+    fig, axes = plt.subplots(
+        n_rows * 2, n_cols, figsize=(5.5 * n_cols, 6 * n_rows),
+        gridspec_kw={"height_ratios": [4, 1] * n_rows},
+    )
+
+    # Dominante Phase pro Probandin
+    subj_dominant = {}
+    for _, row in table_df.iterrows():
+        dominant = row["dominant_phase"]
+        subj_dominant[row["Subject"]] = dominant if dominant != "—" else None
+
+    for idx, ex_name in enumerate(exercise_order):
+        grid_row = (idx // n_cols) * 2
+        grid_col = idx % n_cols
+
+        ax       = axes[grid_row, grid_col]
+        ax_table = axes[grid_row + 1, grid_col]
+
+        sub = df_best[df_best["Übung"] == ex_name]
+        subjects = sorted(sub["Subject"].unique())
+
+        peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
+
+        for subj in subjects:
+            subj_data = sub[sub["Subject"] == subj]
+
+            vals = {}
+            for phase in phase_order:
+                phase_row = subj_data[subj_data["Phase"] == phase]
+                if not phase_row.empty:
+                    vals[phase] = float(phase_row["Wert"].values[0])
+
+            if not vals:
+                continue
+
+            best_phase = max(vals, key=vals.get)
+            peak_phase_counts[best_phase] += 1
+
+            x_pts = [phase_x[p] for p in phase_order if p in vals]
+            y_pts = [vals[p] for p in phase_order if p in vals]
+
+            # Konsistenz pruefen
+            dominant = subj_dominant.get(subj, None)
+            has_consistency = (dominant is not None and dominant == best_phase)
+
+            # Linie: immer grau (wie Original)
+            ax.plot(x_pts, y_pts,
+                    color="#adb5bd", linewidth=1.0, alpha=0.6, zorder=2)
+
+            # Punkte: wie Original – grosser Punkt = Bestleistung in Phasenfarbe
+            for phase, val in vals.items():
+                is_best = (phase == best_phase)
+                ax.scatter(
+                    phase_x[phase], val,
+                    color=phase_colors[phase],
+                    s=120 if is_best else 30,
+                    alpha=0.95 if is_best else 0.5,
+                    edgecolors="black" if is_best else "white",
+                    linewidth=(2.0 if (is_best and has_consistency) else
+                               1.5 if is_best else 0.5),
+                    zorder=4 if is_best else 3,
+                )
+
+            # Annotation: nur Subject-Kuerzel, bei Konsistenz fett
+            best_val = vals[best_phase]
+            ax.annotate(
+                subj, xy=(phase_x[best_phase], best_val),
+                fontsize=6.5,
+                color=phase_colors[best_phase] if has_consistency else "#333333",
+                fontweight="bold" if has_consistency else "normal",
+                alpha=0.85,
+                xytext=(6, 2), textcoords="offset points",
+            )
+
+        ax.set_xticks(range(len(phase_order)))
+        ax.set_xticklabels(phase_order, fontsize=11)
+        ax.set_title(ex_name, fontsize=12, fontweight="bold")
+        unit = ("Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name
+                else "Max. Kniewinkel [°]")
+        ax.set_ylabel(unit, fontsize=10)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(axis="y", alpha=0.3)
+
+        # Häufigkeitstabelle
+        ax_table.axis("off")
+        table_data = [[peak_phase_counts[p] for p in phase_order]]
+        tbl = ax_table.table(
+            cellText=table_data,
+            colLabels=phase_order,
+            rowLabels=["Bestleistung\nin Phase"],
+            cellLoc="center",
+            loc="center",
+        )
+        tbl.auto_set_font_size(False)
+        tbl.set_fontsize(10)
+        tbl.scale(1.0, 1.8)
+
+        for j, phase in enumerate(phase_order):
+            tbl[0, j].set_facecolor(phase_colors[phase])
+            tbl[0, j].set_text_props(color="white", fontweight="bold")
+            tbl[1, j].set_text_props(fontweight="bold", fontsize=12)
+
+    # Leere Subplots ausblenden
+    for idx in range(n_ex, n_rows * n_cols):
+        grid_row = (idx // n_cols) * 2
+        grid_col = idx % n_cols
+        axes[grid_row, grid_col].set_visible(False)
+        axes[grid_row + 1, grid_col].set_visible(False)
+
+    fig.suptitle(
+        "Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n"
+        "(großer Punkt = Bestleistung über alle Zyklusphasen; fett = Bestleistung in ≥2 Übungen in derselben Zyklusphase)",
+        fontsize=13, fontweight="bold",
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"SVG (erweitert) : {out_path.name}") 
  
 if __name__ == "__main__":
     main()
