@@ -200,7 +200,7 @@ def collect_curves(df_best):
             col = f"{SIDE}_{muscle}"
             if col in df.columns:
                 vals = df[col].values
-                if len(vals) == N_POINTS:
+                if len(vals) == N_POINTS and not np.all(np.isnan(vals)):
                     data[label][phase_short][muscle].append(vals)
 
         # Events aus KIN-Datei sammeln
@@ -281,8 +281,8 @@ def plot_all_muscles_by_phase(curves, events, out_dir):
                     continue
 
                 stacked = np.vstack(arrays)
-                mean = np.mean(stacked, axis=0)
-                sd = np.std(stacked, axis=0, ddof=1) if len(arrays) > 1 \
+                mean = np.nanmean(stacked, axis=0)
+                sd = np.nanstd(stacked, axis=0, ddof=1) if len(arrays) > 1 \
                     else np.zeros_like(mean)
 
                 color = MUSCLE_COLORS[muscle]
@@ -355,8 +355,7 @@ def _get_landing_pct_ranges(events, exercise, phase_order):
     aus den Event-Daten aller Probandinnen.
 
     CMJ: Landing → End  (eine Landungsphase)
-    DJ:  Landing 1 → Take-off  (Bodenkontakt)
-         Landing 2 → End       (zweite Landung)
+    DJ:  Landing 2 → End
 
     Returns: list of (start_pct, end_pct, label, color)
     """
@@ -384,12 +383,9 @@ def _get_landing_pct_ranges(events, exercise, phase_order):
             ranges.append((mean_events["Landing"], 100.0,
                            "Landung", "#FF5722"))
     elif "DJ" in exercise:
-        if "Landing 1" in mean_events and "Take-off" in mean_events:
-            ranges.append((mean_events["Landing 1"], mean_events["Take-off"],
-                           "Bodenkontakt", "#FF5722"))
         if "Landing 2" in mean_events and "End" in mean_events:
             ranges.append((mean_events["Landing 2"], 100.0,
-                           "Landung 2", "#9C27B0"))
+                           "Landung 2", "#FF5722"))
 
     return ranges
 
@@ -417,12 +413,12 @@ def _compute_phase_means_in_range(curves_exercise, phase_order, muscle,
         for arr in arrays:
             segment = arr[mask]
             if len(segment) > 0:
-                trial_means.append(np.mean(segment))
+                trial_means.append(np.nanmean(segment))
 
         if trial_means:
             result[phase] = (
-                np.mean(trial_means),
-                np.std(trial_means, ddof=1) if len(trial_means) > 1 else 0.0,
+                np.nanmean(trial_means),
+                np.nanstd(trial_means, ddof=1) if len(trial_means) > 1 else 0.0,
                 len(trial_means),
             )
         else:
@@ -430,33 +426,67 @@ def _compute_phase_means_in_range(curves_exercise, phase_order, muscle,
 
     return result
 
+def _compute_phase_peaks_in_range(curves_exercise, phase_order, muscle,
+                                  pct_start, pct_end):
+    """
+    Berechnet Peak (Maximum) und SD der EMG-Amplitude innerhalb eines
+    pct-Bereichs pro Phase.
+
+    Returns: dict {phase: (peak_mean, peak_sd, n)}
+    """
+    pct = np.linspace(0, 100, N_POINTS)
+    mask = (pct >= pct_start) & (pct <= pct_end)
+
+    result = {}
+    for phase in phase_order:
+        muscle_dict = curves_exercise.get(phase, {})
+        arrays = muscle_dict.get(muscle, [])
+        if not arrays:
+            result[phase] = (np.nan, np.nan, 0)
+            continue
+
+        trial_peaks = []
+        for arr in arrays:
+            segment = arr[mask]
+            if len(segment) > 0:
+                trial_peaks.append(np.nanmax(segment))
+
+        if trial_peaks:
+            result[phase] = (
+                np.nanmean(trial_peaks),
+                np.nanstd(trial_peaks, ddof=1) if len(trial_peaks) > 1 else 0.0,
+                len(trial_peaks),
+            )
+        else:
+            result[phase] = (np.nan, np.nan, 0)
+
+    return result
 
 def plot_phases_overlay_by_muscle(curves, events, out_dir):
     """
     Pro Übung: 5 Zeilen (Muskeln).
     Alle 3 Phasen überlagert in jedem Subplot.
-
-    Bei CMJ und DJ: zusätzliche Spalte(n) rechts mit Balkendiagramm(en)
-    für die mittlere EMG-Amplitude in der Landungsphase.
-    Die Landungsphasen werden im Kurvenplot farbig hinterlegt.
+ 
+    Bei CMJ und DJ: zwei zusätzliche Spalten rechts mit Balkendiagrammen
+    für Mean- und Peak-EMG-Amplitude in der Landungsphase.
+    Landungsphase im Kurvenplot einheitlich orange hinterlegt.
     """
     pct = np.linspace(0, 100, N_POINTS)
     phase_order = ["PER", "OVU", "LUT"]
-
+ 
     for exercise, phase_data in sorted(curves.items()):
         n_mus = len(MUSCLE_NAMES)
-
+ 
         # Landungsphasen bestimmen
         landing_ranges = _get_landing_pct_ranges(events, exercise, phase_order)
-        n_bars = len(landing_ranges)
-        has_bars = n_bars > 0
-
-        # Layout: Kurvenplot + Balkendiagramm(e) rechts
+        has_bars = len(landing_ranges) > 0
+ 
+        # Layout: Kurvenplot + 2 Balkendiagramme (Mean + Peak)
         if has_bars:
-            n_cols = 1 + n_bars
-            width_ratios = [4] + [1] * n_bars
+            n_cols = 3  # Kurve + Mean + Peak
+            width_ratios = [4, 1, 1]
             fig, axes_all = plt.subplots(
-                n_mus, n_cols, figsize=(14 + 3.5 * n_bars, 3 * n_mus),
+                n_mus, n_cols, figsize=(14 + 7, 3 * n_mus),
                 gridspec_kw={"width_ratios": width_ratios},
             )
         else:
@@ -464,73 +494,82 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
             fig, axes_col = plt.subplots(
                 n_mus, 1, figsize=(14, 3 * n_mus), sharex=True,
             )
-            # Einheitliches Format: immer 2D-Array
             axes_all = axes_col.reshape(-1, 1)
-
+ 
         for row_idx, muscle in enumerate(MUSCLE_NAMES):
             # ── Kurvenplot (linke Spalte) ─────────────────────────
             ax = axes_all[row_idx, 0]
-
-            # Landungsphasen farbig hinterlegen
+ 
+            # Landungsphase einheitlich orange hinterlegen
             for pct_s, pct_e, lbl, col in landing_ranges:
                 ax.axvspan(pct_s, pct_e, color=col, alpha=0.08, zorder=0)
-
+ 
             for phase in phase_order:
                 muscle_dict = phase_data.get(phase, {})
                 arrays = muscle_dict.get(muscle, [])
                 if not arrays:
                     continue
-
+ 
                 stacked = np.vstack(arrays)
-                mean = np.mean(stacked, axis=0)
-                sd = np.std(stacked, axis=0, ddof=1) if len(arrays) > 1 \
+                mean = np.nanmean(stacked, axis=0)
+                sd = np.nanstd(stacked, axis=0, ddof=1) if len(arrays) > 1 \
                     else np.zeros_like(mean)
-
+ 
                 color = PHASE_COLORS[phase]
                 ls = PHASE_LINESTYLES.get(phase, "-")
-
+ 
                 if SHOW_SD:
                     ax.fill_between(pct, mean - sd, mean + sd,
                                     color=color, alpha=0.12)
                 ax.plot(pct, mean, color=color, linewidth=2.0,
                         linestyle=ls,
                         label=f"{phase} (n={len(arrays)})")
-
+ 
             ax.axhline(y=100, color="black", linewidth=0.6,
                        linestyle="--", alpha=0.4)
-
+ 
             # Event-Linien
             all_evt_lists = []
             for phase in phase_order:
                 all_evt_lists.extend(events.get(exercise, {}).get(phase, []))
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
-
+ 
             ax.set_ylabel(f"{muscle}\n(% BL)", fontsize=8)
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
             ax.legend(fontsize=8, loc="upper right", framealpha=0.8)
-
+ 
             if row_idx == n_mus - 1:
                 ax.set_xlabel("Bewegungszyklus [%]", fontsize=10)
-
-            # ── Balkendiagramme (rechte Spalte(n)) ────────────────
+ 
+            # ── Balkendiagramme (Mean + Peak) ─────────────────────
             if has_bars:
-                for bar_idx, (pct_s, pct_e, bar_label, bar_color) in enumerate(landing_ranges):
-                    ax_bar = axes_all[row_idx, 1 + bar_idx]
-
-                    phase_stats = _compute_phase_means_in_range(
-                        phase_data, phase_order, muscle, pct_s, pct_e,
-                    )
-
+                pct_s, pct_e, bar_label, bar_color = landing_ranges[0]
+ 
+                # Mean-Aktivierung
+                mean_stats = _compute_phase_means_in_range(
+                    phase_data, phase_order, muscle, pct_s, pct_e,
+                )
+                # Peak-Aktivierung
+                peak_stats = _compute_phase_peaks_in_range(
+                    phase_data, phase_order, muscle, pct_s, pct_e,
+                )
+ 
+                for bar_col_idx, (stats, title_text) in enumerate([
+                    (mean_stats, "Mean"),
+                    (peak_stats, "Peak"),
+                ]):
+                    ax_bar = axes_all[row_idx, 1 + bar_col_idx]
+ 
                     phases_present = [p for p in phase_order
-                                      if not np.isnan(phase_stats[p][0])]
-                    means = [phase_stats[p][0] for p in phases_present]
-                    sds = [phase_stats[p][1] for p in phases_present]
+                                      if not np.isnan(stats[p][0])]
+                    means = [stats[p][0] for p in phases_present]
+                    sds = [stats[p][1] for p in phases_present]
                     colors = [PHASE_COLORS[p] for p in phases_present]
-
+ 
                     x_pos = np.arange(len(phases_present))
                     bars = ax_bar.bar(
                         x_pos, means, yerr=sds, capsize=3,
@@ -540,41 +579,30 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
                     )
                     for bar, p in zip(bars, phases_present):
                         bar.set_hatch(PHASE_HATCHES.get(p, ""))
-
-                    # Werte über Balken
-                    for bar, m, s in zip(bars, means, sds):
-                        ax.text(bar.get_x() + bar.get_width() * 0.85, bar.get_height() * 0.85,
-                            f"{m:.3f}", ha="right", va="top", fontsize=8,
-                            fontweight="bold", color="black")
-
-                        ax.text(bar.get_x() + bar.get_width() * 0.85, bar.get_height() * 0.85,
-                    f"{m:.3f}", ha="right", va="top", fontsize=8,
-                    fontweight="bold", color="black")
-
+ 
                     ax_bar.set_xticks(x_pos)
                     ax_bar.set_xticklabels(phases_present, fontsize=7)
                     ax_bar.spines["top"].set_visible(False)
                     ax_bar.spines["right"].set_visible(False)
                     ax_bar.grid(axis="y", alpha=0.2)
+ 
+                    # Y-Achse: gleicher Bereich wie Kurvenplot, MIT Zahlenwerten
+                    ax_bar.set_ylim(ax.get_ylim())
                     ax_bar.tick_params(axis="y", labelsize=6)
-
-                    # Titel nur erste Zeile
+ 
+                    # Titel nur in erster Zeile
                     if row_idx == 0:
                         ax_bar.set_title(
-                            f"Mean\n{bar_label}",
+                            f"{title_text}\n{bar_label}",
                             fontsize=9, fontweight="bold",
                             color=bar_color,
                         )
-
-                    # Y-Achse gleich wie Kurvenplot
-                    ax_bar.set_ylim(ax.get_ylim())
-                    ax_bar.set_yticklabels([])
-
+ 
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel (Gruppenmittel, beste Trials)",
             fontsize=13, fontweight="bold",
         )
-
+ 
         plt.tight_layout(rect=[0, 0, 1, 0.97])
         out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_phase_overlay.svg"
         fig.savefig(out_path, dpi=150, bbox_inches="tight")
