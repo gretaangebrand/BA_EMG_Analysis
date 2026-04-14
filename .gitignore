@@ -50,10 +50,12 @@ data/processed_data/
 data/raw_data/*.xlsx
 data/raw_data/*.ods
 data/raw_data/*.ods#
+outputs/
 
 # Große Tabellen / Exporte optional zusätzlich ignorieren
 *.xlsx
 *.ods
+*.tex
 
 # Workspace
 *.code-workspace
