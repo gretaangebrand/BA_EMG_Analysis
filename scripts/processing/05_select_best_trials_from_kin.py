@@ -752,7 +752,7 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
  
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
-        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.3) # x Achsen anpassen
+        ax.set_xlim(-0.1, len(phase_order) - 1 + 0.1) # x Achsen anpassen
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
         ax.set_ylabel(unit, fontsize=10)
@@ -1084,7 +1084,7 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
-        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.3) # x Achsen anpassen für erweiterten Plot
+        ax.set_xlim(-0.1, len(phase_order) - 1 + 0.1) # x Achsen anpassen für erweiterten Plot
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = ("Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name
                 else "Max. Kniewinkel [°]")
