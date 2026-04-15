@@ -16,7 +16,6 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from adjustText import adjust_text
 # import matplotlib.ticker as ticker
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
@@ -679,7 +678,7 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
  
         peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
         higher_is_better = True
-        texts = [] #für adjust Text
+        label_info = [] #für adjust Text
  
         for s_idx, subj in enumerate(subjects):
             subj_data = sub[sub["Subject"] == subj]
@@ -719,23 +718,41 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
                 )
  
             best_val = vals[best_phase]
-            txt = ax.text(
-                phase_x[best_phase] + 0.05, best_val, subj,
-                fontsize=6.5, color="#333333", alpha=0.85,
-                ha="left", va="center",
-                zorder=6,
-            )
-            texts.append(txt)
+            label_info.append((phase_x[best_phase], best_val, subj))
 
-        # Labels automatisch entzerren
-        adjust_text(texts, ax=ax,
-                    force_points=(1.0, 1.0),
-                    arrowprops=dict(arrowstyle="-", color="#aaaaaa",
-                    lw=0.5, alpha=0.5, shrinkA=5, shrinkB=5))
+        # Labels platzieren mit vertikalem Offset bei Überlappung
+        label_info.sort(key=lambda t: t[1])
+        y_range = ax.get_ylim()
+        y_span = y_range[1] - y_range[0]
+        min_gap = y_span * 0.04
+
+        placed_labels = []
+        for lx, ly, subj in label_info:
+            y_offset = 0
+            for px, py in placed_labels:
+                if abs(lx - px) < 0.5 and abs((ly + y_offset) - py) < min_gap:
+                    if ly + y_offset >= py:
+                        y_offset = py + min_gap - ly
+                    else:
+                        y_offset = py - min_gap - ly
+ 
+            y_final = ly + y_offset
+            placed_labels.append((lx, y_final))
+ 
+            ax.annotate(
+                subj, xy=(lx, ly), xytext=(lx + 0.08, y_final),
+                fontsize=6.5, color="#333333",
+                alpha=0.85, zorder=6, clip_on=False,
+                va="center", ha="left",
+                arrowprops=dict(arrowstyle="-", color="#cccccc",
+                                lw=0.4, alpha=0.4,
+                                shrinkA=0, shrinkB=3)
+                if abs(y_offset) > min_gap * 0.5 else None,
+            )
  
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
-        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.5)
+        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.3) # x Achsen anpassen
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
         ax.set_ylabel(unit, fontsize=10)
@@ -774,8 +791,8 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
         "(großer Punkt = absolute Bestleistung über alle 3 Phasen)",
         fontsize=13, fontweight="bold",
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.94])
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.tight_layout(rect=[0, 0, 0.95, 0.94])
+    fig.savefig(out_path, dpi=150, bbox_inches="tight", pad_inches=0.4)
     plt.close(fig)
     print(f"  SVG (Bestleist.): {out_path.name}")
 
@@ -983,7 +1000,7 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
         subjects = sorted(sub["Subject"].unique())
 
         peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
-        texts = []
+        label_info = []  # (x, y, subj, color, fontweight) für spätere Platzierung
 
         for subj in subjects:
             subj_data = sub[sub["Subject"] == subj]
@@ -1027,26 +1044,47 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
 
             # Label sammeln (adjustText positioniert später)
             best_val = vals[best_phase]
-            txt = ax.text(
-                phase_x[best_phase] + 0.05, best_val, subj,
-                fontsize=6.5,
-                color=phase_colors[best_phase] if has_consistency else "#333333",
-                fontweight="bold" if has_consistency else "normal",
-                alpha=0.85,
-                ha="left", va="center",
-                zorder=6,
-            )
-            texts.append(txt)
+            lbl_color = phase_colors[best_phase] if has_consistency else "#333333"
+            lbl_weight = "bold" if has_consistency else "normal"
+            label_info.append((phase_x[best_phase], best_val, subj,
+                               lbl_color, lbl_weight))
 
-        # Labels automatisch entzerren
-        adjust_text(texts, ax=ax,
-                    force_points=(1.0, 1.0),
-                    arrowprops=dict(arrowstyle="-", color="#aaaaaa",
-                    lw=0.5, alpha=0.5, shrinkA=5, shrinkB=5))
+        # Labels platzieren mit vertikalem Offset bei Überlappung
+        # Sortiere nach y-Position, dann verteile überlappende Labels
+        label_info.sort(key=lambda t: t[1])  # nach y sortieren
+        y_range = ax.get_ylim()
+        y_span = y_range[1] - y_range[0]
+        min_gap = y_span * 0.04  # Mindestabstand zwischen Labels
+
+        placed_labels = []  # (x, y_final) bereits platzierte Labels
+        for lx, ly, subj, lcolor, lweight in label_info:
+            # Prüfe Überlappung mit bereits platzierten Labels auf gleicher x-Seite
+            y_offset = 0
+            for px, py in placed_labels:
+                if abs(lx - px) < 0.5 and abs((ly + y_offset) - py) < min_gap:
+                    # Verschiebe nach oben oder unten
+                    if ly + y_offset >= py:
+                        y_offset = py + min_gap - ly
+                    else:
+                        y_offset = py - min_gap - ly
+
+            y_final = ly + y_offset
+            placed_labels.append((lx, y_final))
+
+            ax.annotate(
+                subj, xy=(lx, ly), xytext=(lx + 0.08, y_final),
+                fontsize=6.5, color=lcolor, fontweight=lweight,
+                alpha=0.85, zorder=6, clip_on=False,
+                va="center", ha="left",
+                arrowprops=dict(arrowstyle="-", color="#cccccc",
+                                lw=0.4, alpha=0.4,
+                                shrinkA=0, shrinkB=3)
+                if abs(y_offset) > min_gap * 0.5 else None,
+            )
 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
-        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.5)
+        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.3) # x Achsen anpassen für erweiterten Plot
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = ("Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name
                 else "Max. Kniewinkel [°]")
@@ -1086,8 +1124,8 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
         "(großer Punkt = Bestleistung über alle Zyklusphasen; fett = Bestleistung in ≥3 Übungen in derselben Zyklusphase)",
         fontsize=13, fontweight="bold",
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.tight_layout(rect=[0, 0, 0.95, 0.92])
+    fig.savefig(out_path, dpi=150, bbox_inches="tight", pad_inches=0.4)
     plt.close(fig)
     print(f"SVG (erweitert) : {out_path.name}") 
  
