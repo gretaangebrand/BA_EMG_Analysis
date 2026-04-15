@@ -16,6 +16,7 @@ from collections import Counter
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from adjustText import adjust_text
 # import matplotlib.ticker as ticker
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
@@ -678,6 +679,7 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
  
         peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
         higher_is_better = True
+        texts = [] #für adjust Text
  
         for s_idx, subj in enumerate(subjects):
             subj_data = sub[sub["Subject"] == subj]
@@ -717,14 +719,23 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
                 )
  
             best_val = vals[best_phase]
-            ax.annotate(
-                subj, xy=(phase_x[best_phase], best_val),
+            txt = ax.text(
+                phase_x[best_phase] + 0.05, best_val, subj,
                 fontsize=6.5, color="#333333", alpha=0.85,
-                xytext=(6, 2), textcoords="offset points",
+                ha="left", va="center",
+                zorder=6,
             )
+            texts.append(txt)
+
+        # Labels automatisch entzerren
+        adjust_text(texts, ax=ax,
+                    force_points=(1.0, 1.0),
+                    arrowprops=dict(arrowstyle="-", color="#aaaaaa",
+                    lw=0.5, alpha=0.5, shrinkA=5, shrinkB=5))
  
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
+        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.5)
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
         ax.set_ylabel(unit, fontsize=10)
@@ -972,6 +983,7 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
         subjects = sorted(sub["Subject"].unique())
 
         peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
+        texts = []
 
         for subj in subjects:
             subj_data = sub[sub["Subject"] == subj]
@@ -1008,24 +1020,33 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
                     s=120 if is_best else 30,
                     alpha=0.95 if is_best else 0.5,
                     edgecolors="black" if is_best else "white",
-                    linewidth=(2.0 if (is_best and has_consistency) else
-                               1.5 if is_best else 0.5),
+                    linewidth=(2.0 if (is_best and has_consistency) else #Punkte hier anpassen
+                               0.5 if is_best else 0.5),
                     zorder=4 if is_best else 3,
                 )
 
-            # Annotation: nur Subject-Kuerzel, bei Konsistenz fett
+            # Label sammeln (adjustText positioniert später)
             best_val = vals[best_phase]
-            ax.annotate(
-                subj, xy=(phase_x[best_phase], best_val),
+            txt = ax.text(
+                phase_x[best_phase] + 0.05, best_val, subj,
                 fontsize=6.5,
                 color=phase_colors[best_phase] if has_consistency else "#333333",
                 fontweight="bold" if has_consistency else "normal",
                 alpha=0.85,
-                xytext=(6, 2), textcoords="offset points",
+                ha="left", va="center",
+                zorder=6,
             )
+            texts.append(txt)
+
+        # Labels automatisch entzerren
+        adjust_text(texts, ax=ax,
+                    force_points=(1.0, 1.0),
+                    arrowprops=dict(arrowstyle="-", color="#aaaaaa",
+                    lw=0.5, alpha=0.5, shrinkA=5, shrinkB=5))
 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
+        ax.set_xlim(-0.3, len(phase_order) - 1 + 0.5)
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = ("Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name
                 else "Max. Kniewinkel [°]")
