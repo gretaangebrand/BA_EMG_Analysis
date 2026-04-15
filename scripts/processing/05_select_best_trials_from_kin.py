@@ -29,7 +29,6 @@ DATA_DIR    = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EM
 OUTPUT_DIR  = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\05_best_trials_group_and_individual")
 FIGURES_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\figures\best_trials_group_individual")
 
-
 # ============================================================
 # EINSTELLUNGEN
 # ============================================================
@@ -101,6 +100,35 @@ def _is_excluded(subject: str, label: str, phase: str, trial_name: str) -> bool:
 # ============================================================
 # HILFSFUNKTIONEN
 # ============================================================
+def _is_jump_exercise(ex_name: str) -> bool:
+    """Prüft ob eine Übung eine Sprungübung ist (CMJ oder DJ)."""
+    return "CMJ" in ex_name or "DJ" in ex_name
+
+
+def _fmt_value(value: float, ex_name: str) -> str:
+    """Formatiert einen Wert passend zur Übung:
+    Sprung (m) → 2 Nachkommastellen, Squat (°) → 0 Nachkommastellen."""
+    if _is_jump_exercise(ex_name):
+        return f"{value:.2f}"
+    else:
+        return f"{value:.0f}"
+
+
+def _fmt_mean_sd(mean: float, sd: float, ex_name: str) -> str:
+    """Formatiert Mittelwert ± SD passend zur Übung."""
+    if _is_jump_exercise(ex_name):
+        return f"{mean:.2f} ± {sd:.2f}"
+    else:
+        return f"{mean:.0f} ± {sd:.0f}"
+
+
+def _get_unit_label(ex_name: str) -> str:
+    """Gibt das Y-Achsen-Label passend zur Übung zurück."""
+    if _is_jump_exercise(ex_name):
+        return "Sprunghöhe [m]"
+    else:
+        return "Max. Kniewinkel [°]"
+
 
 def get_jumpheight(emg_path: Path) -> float:
     """
@@ -302,17 +330,19 @@ def main():
     print("GRUPPENMITTELWERTE (beste Trials)")
     print(f"{'='*70}")
     for _, row in df_group.iterrows():
-        unit = "m" if "CMJ" in row["Übung"] or "DJ" in row["Übung"] else "°"
+        unit = "m" if _is_jump_exercise(row["Übung"]) else "°"
+        fmt = _fmt_mean_sd(row["Mittelwert"], row["SD"], row["Übung"])
         print(f"  {row['Übung']:22s} | {row['Phase']:4s} | "
-              f"{row['Mittelwert']:7.3f} ± {row['SD']:6.3f} {unit}  (n={int(row['n'])})")
+              f"{fmt} {unit}  (n={int(row['n'])})")
 
     # ── Konsolenausgabe: Individuelle beste Trials ─────────────────────────
     print(f"\n{'='*70}")
     print("INDIVIDUELLE BESTE TRIALS")
     print(f"{'='*70}")
     for _, row in df_best.iterrows():
+        val_str = _fmt_value(row['Wert'], row['Übung'])
         print(f"  {row['Subject']:5s} | {row['Übung']:22s} | {row['Phase']:4s} | "
-              f"{row['Bester Trial']:15s} | {row['Wert']:7.3f} {row['Einheit']}")
+              f"{row['Bester Trial']:15s} | {val_str} {row['Einheit']}")
 
     # ── PDF: Übersichtstabelle ─────────────────────────────────────────────
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
@@ -325,7 +355,7 @@ def main():
     _create_individual_plot(df_best, FIGURES_DIR / "individuelle_beste_trials_plot.svg")
 
     # ── Plot: Verfügbarkeit bester Trials pro Übung × Phase ───────────────
-    #_create_availability_plot(df_best, FIGURES_DIR / "verfuegbarkeit_beste_trials.svg")
+    _create_availability_plot(df_best, FIGURES_DIR / "verfuegbarkeit_beste_trials.svg")
 
     # ── Plot: Bestleistung pro Probandin – in welcher Phase? ──────────────
     _create_peak_phase_plot(df_best, FIGURES_DIR / "bestleistung_pro_probandin.svg")
@@ -375,14 +405,14 @@ def _create_overview_pdf(df_best: pd.DataFrame, df_group: pd.DataFrame,
     # Tabelle 1: Gruppenmittelwerte
     group_display = df_group.copy()
     group_display["Mittelwert ± SD"] = group_display.apply(
-        lambda r: f"{r['Mittelwert']:.3f} ± {r['SD']:.3f}", axis=1
+        lambda r: _fmt_mean_sd(r['Mittelwert'], r['SD'], r['Übung']), axis=1
     )
     tab1 = group_display[["Übung", "Phase", "Mittelwert ± SD", "n"]]
  
     # Tabelle 2: Individuelle beste Trials
     best_display = df_best[["Subject", "Übung", "Phase", "Bester Trial", "Wert", "Einheit"]].copy()
     best_display["Wert"] = best_display.apply(
-        lambda r: f"{r['Wert']:.3f} {r['Einheit']}", axis=1
+        lambda r: f"{_fmt_value(r['Wert'], r['Übung'])} {r['Einheit']}", axis=1
     )
     tab2 = best_display[["Subject", "Übung", "Phase", "Bester Trial", "Wert"]]
  
@@ -471,13 +501,17 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
  
         for bar, m, s in zip(bars, means, sds):
             unit = "m" if "CMJ" in ex_name or "DJ" in ex_name else "°"
-            ax.text(bar.get_x() + bar.get_width() * 0.85, bar.get_height() * 0.85,
-                    f"{m:.3f}", ha="right", va="top", fontsize=8,
+            ax.text(bar.get_x() + bar.get_width() * 0.95, bar.get_height() * 0.98,
+                    _fmt_value(m, ex_name), ha="right", va="top", fontsize=8,
                     fontweight="bold", color="black")
  
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
-        unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
+        unit = _get_unit_label(ex_name)
         ax.set_ylabel(unit, fontsize=10)
+        if _is_jump_exercise(ex_name):
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".2f": f"{v:{fmt}}"))
+        else:
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".0f": f"{v:{fmt}}"))
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
@@ -540,7 +574,7 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
             ax.hlines(mean_val, p_idx - 0.3, p_idx + 0.3,
                       color=phase_colors.get(phase, "gray"),
                       linewidth=2.5, zorder=4)
-            ax.text(p_idx + 0.35, mean_val, f"{mean_val:.3f}",
+            ax.text(p_idx + 0.35, mean_val, _fmt_value(mean_val, ex_name),
                     fontsize=7, fontweight="bold",
                     color=phase_colors.get(phase, "gray"),
                     va="center", ha="left", zorder=5)
@@ -549,8 +583,12 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order)
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
-        unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
+        unit = _get_unit_label(ex_name)
         ax.set_ylabel(unit, fontsize=10)
+        if _is_jump_exercise(ex_name):
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".2f": f"{v:{fmt}}"))
+        else:
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".0f": f"{v:{fmt}}"))
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
@@ -754,8 +792,12 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
         ax.set_xticklabels(phase_order, fontsize=11)
         ax.set_xlim(-0.1, len(phase_order) - 1 + 0.1) # x Achsen anpassen
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
-        unit = "Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name else "Max. Kniewinkel [°]"
+        unit = _get_unit_label(ex_name)
         ax.set_ylabel(unit, fontsize=10)
+        if _is_jump_exercise(ex_name):
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".2f": f"{v:{fmt}}"))
+        else:
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".0f": f"{v:{fmt}}"))
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
@@ -841,7 +883,7 @@ def _build_best_phase_table(df_best: pd.DataFrame) -> pd.DataFrame:
 
             row[f"{ex}_phase"] = best_phase
             row[f"{ex}_session"] = str(session)
-            row[f"{ex}_value"] = f"{best_value:.3f}"
+            row[f"{ex}_value"] = _fmt_value(best_value, ex)
 
         # Dominante Phase: in wie vielen Übungen die gleiche Phase?
         phases = [row[f"{ex}_phase"] for ex in BESTLEISTUNG_EXERCISE_ORDER
@@ -1086,12 +1128,16 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
         ax.set_xticklabels(phase_order, fontsize=11)
         ax.set_xlim(-0.1, len(phase_order) - 1 + 0.1) # x Achsen anpassen für erweiterten Plot
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
-        unit = ("Sprunghöhe [m]" if "CMJ" in ex_name or "DJ" in ex_name
-                else "Max. Kniewinkel [°]")
+        unit = _get_unit_label(ex_name)
         ax.set_ylabel(unit, fontsize=10)
+        if _is_jump_exercise(ex_name):
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".2f": f"{v:{fmt}}"))
+        else:
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".0f": f"{v:{fmt}}"))
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
+        
 
         # Häufigkeitstabelle
         ax_table.axis("off")

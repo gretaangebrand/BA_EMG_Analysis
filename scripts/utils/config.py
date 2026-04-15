@@ -33,9 +33,9 @@ PHASE_LINESTYLES = {
 
 # Schraffuren für Balkendiagramme (SW-Druck)
 PHASE_HATCHES = {
-    "PER": "",          # keine Schraffur (voll gefüllt)
-    "OVU": "//",        # diagonal schraffiert
-    "LUT": "\\",        # diagonal schraffiert
+    "PER": "|",          # keine Schraffur (voll gefüllt)
+    "OVU": "",        # diagonal schraffiert oder /
+    "LUT": "-",        # diagonal schraffiert \\
 }
 
 
@@ -43,18 +43,18 @@ PHASE_HATCHES = {
 # MUSKELN: Reihenfolge und Farben
 # ============================================================
 # Reihenfolge: von proximal nach distal (Körper von oben nach unten)
-#   1. Gluteus Medius        – Hüfte
-#   2. Vastus Lateralis      – Oberschenkel vorne
-#   3. Biceps Femoris        – Oberschenkel hinten
-#   4. Semitendinosus        – Oberschenkel hinten (medial)
-#   5. Gastrocnemius medial  – Unterschenkel
+#   1. Gluteus Medius         – Hüfte
+#   2. Vastus Lateralis       – Oberschenkel vorne
+#   3. Biceps Femoris         – Oberschenkel hinten
+#   4. Semitendinosus         – Oberschenkel hinten (medial)
+#   5. Gastrocnemius medialis – Unterschenkel
 
 MUSCLE_NAMES = [
     "Gluteus Medius",
     "Vastus Lateralis",
     "Biceps Femoris",
     "Semitendinosus",
-    "Gastrocnemius medial",
+    "Gastrocnemius medialis",
 ]
 
 # Farben: barrierefrei, keine Überschneidung mit PHASE_COLORS
@@ -63,7 +63,7 @@ MUSCLE_COLORS = {
     "Vastus Lateralis":     "#DE8F05",   # Orange
     "Biceps Femoris":       "#CA9161",   # Braun
     "Semitendinosus":       "#ECE133",   # Gelb
-    "Gastrocnemius medial": "#56B4E9",   # Hellblau
+    "Gastrocnemius medialis": "#56B4E9",   # Hellblau
 }
 
 MUSCLE_LINESTYLES = {
@@ -71,7 +71,7 @@ MUSCLE_LINESTYLES = {
     "Vastus Lateralis":     "--",        # gestrichelt
     "Biceps Femoris":       "-.",        # Strich-Punkt
     "Semitendinosus":       ":",         # gepunktet
-    "Gastrocnemius medial": (0, (5, 1)), # eng gestrichelt
+    "Gastrocnemius medialis": (0, (5, 1)), # eng gestrichelt
 }
 
 

@@ -9,6 +9,16 @@ from scripts.utils.helpers import (
     make_short_trial_name,
 )
 
+# Normalisierung von Spaltennamen: verschiedene Schreibweisen → einheitlich
+# Wird auf EMG-Spaltennamen angewendet (nach dem Einlesen aus den Rohdaten).
+# Key = Variante in den Rohdaten, Value = einheitlicher Name in der Pipeline
+
+COLUMN_NAME_NORMALIZE = {
+    "Gastrocnemius medial": "Gastrocnemius medialis",
+    "Gastrocnemius Medial": "Gastrocnemius medialis",
+    "Gastrocnemius Medialis": "Gastrocnemius medialis",
+}
+
 # =============================================================================
 # 02_preprocess_emg.py
 #
@@ -239,6 +249,11 @@ def build_emg_dataframe(
     emg_series = []
     for i in col_map["emg"]:
         col_name = row1.iloc[i].strip()
+        # Spaltennamen normalisieren (z.B. "Gastrocnemius Medialis" → "Gastrocnemius medial")
+        for variant, canonical in COLUMN_NAME_NORMALIZE.items():
+            if variant in col_name:
+                col_name = col_name.replace(variant, canonical)
+                break
         s = pd.to_numeric(data.iloc[:, i], errors="coerce")
         s.name = col_name
         emg_series.append(s)

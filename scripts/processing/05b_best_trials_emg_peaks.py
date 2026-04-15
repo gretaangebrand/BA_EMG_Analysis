@@ -92,7 +92,7 @@ def create_pdf(df_individual, df_group, out_path):
         "Vastus Lateralis":     "Vast Lat",
         "Biceps Femoris":       "Bic Fem",
         "Semitendinosus":       "Semitend",
-        "Gastrocnemius medial": "Gastroc",
+        "Gastrocnemius medialis": "Gastroc",
     }
 
     # Tabelle 1: Gruppenmittelwerte
