@@ -47,14 +47,14 @@ PHASE_HATCHES = {
 #   2. Vastus Lateralis       – Oberschenkel vorne
 #   3. Biceps Femoris         – Oberschenkel hinten
 #   4. Semitendinosus         – Oberschenkel hinten (medial)
-#   5. Gastrocnemius medialis – Unterschenkel
+#   5. Gastrocnemius Medialis – Unterschenkel
 
 MUSCLE_NAMES = [
     "Gluteus Medius",
     "Vastus Lateralis",
     "Biceps Femoris",
     "Semitendinosus",
-    "Gastrocnemius medialis",
+    "Gastrocnemius Medialis",
 ]
 
 # Farben: barrierefrei, keine Überschneidung mit PHASE_COLORS
@@ -63,7 +63,7 @@ MUSCLE_COLORS = {
     "Vastus Lateralis":     "#DE8F05",   # Orange
     "Biceps Femoris":       "#CA9161",   # Braun
     "Semitendinosus":       "#ECE133",   # Gelb
-    "Gastrocnemius medialis": "#56B4E9",   # Hellblau
+    "Gastrocnemius Medialis": "#56B4E9",   # Hellblau
 }
 
 MUSCLE_LINESTYLES = {
@@ -71,7 +71,7 @@ MUSCLE_LINESTYLES = {
     "Vastus Lateralis":     "--",        # gestrichelt
     "Biceps Femoris":       "-.",        # Strich-Punkt
     "Semitendinosus":       ":",         # gepunktet
-    "Gastrocnemius medialis": (0, (5, 1)), # eng gestrichelt
+    "Gastrocnemius Medialis": (0, (5, 1)), # eng gestrichelt
 }
 
 

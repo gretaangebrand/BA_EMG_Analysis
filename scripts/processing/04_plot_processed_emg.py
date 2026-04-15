@@ -8,7 +8,7 @@ Liest die *_processed.csv Dateien aus dem processed_emg_pipeline-Ordner
 
 Layout pro Plot-Datei:
   - 5 Zeilen  = 5 Muskeln (Vastus Lateralis, Biceps Femoris,
-                            Semitendinosus, Gluteus Medius, Gastrocnemius medial)
+                            Semitendinosus, Gluteus Medius, Gastrocnemius Medialis)
   - 3 Spalten = 3 Zyklusphasen (01_PER | 02_OVU | 03_LUT)
   -> 15 Subplots pro Datei
 

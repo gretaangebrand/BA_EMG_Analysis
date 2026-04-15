@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import re
 
 from scripts.utils.helpers import (
     get_sampling_rate_for_subject,
@@ -14,9 +15,10 @@ from scripts.utils.helpers import (
 # Key = Variante in den Rohdaten, Value = einheitlicher Name in der Pipeline
 
 COLUMN_NAME_NORMALIZE = {
-    "Gastrocnemius medial": "Gastrocnemius medialis",
-    "Gastrocnemius Medial": "Gastrocnemius medialis",
-    "Gastrocnemius Medialis": "Gastrocnemius medialis",
+    "Gastrocnemius Medialis": "Gastrocnemius Medialis",
+    "Gastrocnemius medialis": "Gastrocnemius Medialis",  # bereits korrekt, aber sicherstellen
+    "Gastrocnemius Medial":   "Gastrocnemius Medialis",
+    "Gastrocnemius medial":   "Gastrocnemius Medialis",
 }
 
 # =============================================================================
@@ -250,10 +252,15 @@ def build_emg_dataframe(
     for i in col_map["emg"]:
         col_name = row1.iloc[i].strip()
         # Spaltennamen normalisieren (z.B. "Gastrocnemius Medialis" → "Gastrocnemius medial")
-        for variant, canonical in COLUMN_NAME_NORMALIZE.items():
-            if variant in col_name:
-                col_name = col_name.replace(variant, canonical)
-                break
+        col_lower = col_name.lower()
+        if "gastrocnemius" in col_lower:
+            # Alle Varianten auf einheitlich "Gastrocnemius medialis" normalisieren
+            col_name = re.sub(
+                r'Gastrocnemius\s+[Mm]edial(is)?',
+                'Gastrocnemius Medialis',
+                col_name
+            )
+
         s = pd.to_numeric(data.iloc[:, i], errors="coerce")
         s.name = col_name
         emg_series.append(s)
