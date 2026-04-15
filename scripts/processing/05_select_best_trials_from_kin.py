@@ -821,7 +821,7 @@ def _build_best_phase_table(df_best: pd.DataFrame) -> pd.DataFrame:
         if phases:
             phase_counts = Counter(phases)
             dominant_phase, dominant_count = phase_counts.most_common(1)[0]
-            row["dominant_phase"] = dominant_phase if dominant_count > 1 else "—"
+            row["dominant_phase"] = dominant_phase if dominant_count >= 3 else "—"
             row["dominant_count"] = f"{dominant_count}/{len(phases)}"
         else:
             row["dominant_phase"] = "—"
@@ -1062,7 +1062,7 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
 
     fig.suptitle(
         "Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n"
-        "(großer Punkt = Bestleistung über alle Zyklusphasen; fett = Bestleistung in ≥2 Übungen in derselben Zyklusphase)",
+        "(großer Punkt = Bestleistung über alle Zyklusphasen; fett = Bestleistung in ≥3 Übungen in derselben Zyklusphase)",
         fontsize=13, fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 1, 0.92])
