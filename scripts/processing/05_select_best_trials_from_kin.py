@@ -1432,9 +1432,9 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         axes[grid_row + 1, grid_col].set_visible(False)
 
     fig.suptitle(
-        "Individuelle Bestleistung pro Probandin (mit Gruppenverteilung)\n"
+        "Individuelle Bestleistung pro Probandin\n"
         "(großer Punkt = Bestleistung; fett = Konsistenz in ≥3 Übungen | "
-        "Violine = Gruppenverteilung",
+        "Violine = Gruppenverteilung)",
         fontsize=12, fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 0.95, 0.92])
