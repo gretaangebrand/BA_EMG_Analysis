@@ -808,11 +808,16 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
  
         # Häufigkeitstabelle
         ax_table.axis("off")
-        table_data = [[peak_phase_counts[p] for p in phase_order]]
+
+        table_data = [
+            ["", "", ""],                                      # leere obere Zeile (nur für Label links)
+            [peak_phase_counts[p] for p in phase_order],       # Zahlen unten
+        ]
+
         tbl = ax_table.table(
             cellText=table_data,
             colLabels=phase_order,
-            rowLabels=["Bestleistung\nin Phase"],
+            rowLabels=["Bestleistung\nin Phase", "Anzahl"],
             cellLoc="center",
             loc="center",
         )
@@ -824,6 +829,10 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
             tbl[0, j].set_facecolor(phase_colors[phase])
             tbl[0, j].set_text_props(color="white", fontweight="bold")
             tbl[1, j].set_text_props(fontweight="bold", fontsize=12)
+
+        # Alle Zellen zusätzlich vertikal zentrieren (besonders wichtig für rowLabels mit \n)
+        for cell in tbl.get_celld().values():
+            cell.set_text_props(va="center", ha="center")
  
     # Leere Subplots ausblenden
     for idx in range(n_ex, n_rows * n_cols):
@@ -1000,7 +1009,6 @@ def _generate_latex_table(table_df: pd.DataFrame, out_path: Path):
     print(f"  LaTeX-Tabelle   : {out_path.name}")
 
 
-
 def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
                                      table_df: pd.DataFrame,
                                      out_path: Path):
@@ -1146,11 +1154,13 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
 
         # Häufigkeitstabelle
         ax_table.axis("off")
-        table_data = [[peak_phase_counts[p] for p in phase_order]]
+        table_data = [
+            list(phase_order),                               # Zeile 1: PER, OVU, LUT
+            [peak_phase_counts[p] for p in phase_order],     # Zeile 2: Zahlen
+        ]
         tbl = ax_table.table(
             cellText=table_data,
-            colLabels=phase_order,
-            rowLabels=["Bestleistung\nin Phase"],
+            rowLabels=["Bestleistung\nin Phase", "Anzahl"],
             cellLoc="center",
             loc="center",
         )
@@ -1158,10 +1168,16 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
         tbl.set_fontsize(10)
         tbl.scale(1.0, 1.8)
 
+        # Obere Zeile: farbige Phasen-Zellen
         for j, phase in enumerate(phase_order):
             tbl[0, j].set_facecolor(phase_colors[phase])
             tbl[0, j].set_text_props(color="white", fontweight="bold")
+            # Untere Zeile: Zahlen fett
             tbl[1, j].set_text_props(fontweight="bold", fontsize=12)
+
+        # Alle Zellen zusätzlich vertikal zentrieren (besonders wichtig für rowLabels mit \n)
+        for cell in tbl.get_celld().values():
+            cell.set_text_props(va="center", ha="center")
 
     # Leere Subplots ausblenden
     for idx in range(n_ex, n_rows * n_cols):
@@ -1186,7 +1202,8 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
     """
     Wie _create_enhanced_peak_phase_plot, aber zusätzlich mit:
       - Violinplot im Hintergrund (Gruppenverteilung pro Phase)
-      - Gruppenmittelwert als roter Querstrich mit Zahlenwert
+      - Gruppenmittelwert wird berechnet und in der Konsole ausgegeben,
+        aber NICHT im Plot dargestellt (reine Kontrolle).
     """
     phase_order  = ["PER", "OVU", "LUT"]
     phase_colors = PHASE_COLORS
@@ -1213,6 +1230,9 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
     for _, row in table_df.iterrows():
         dominant = row["dominant_phase"]
         subj_dominant[row["Subject"]] = dominant if dominant != "—" else None
+
+    # Konsolen-Kontrollausgabe
+    print("\n  Gruppenmittelwerte pro Übung × Phase (nur Konsole, nicht im Plot):")
 
     for idx, ex_name in enumerate(exercise_order):
         grid_row = (idx // n_cols) * 2
@@ -1246,22 +1266,17 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
                 pc.set_alpha(0.18)
                 pc.set_zorder(1)
 
-        # ── Gruppenmittelwert pro Phase als roter Querstrich ──
+        # ── Gruppenmittelwert pro Phase: nur berechnen, nicht plotten ──
+        mean_vals_console = []
         for phase in phase_order:
             phase_vals = sub[sub["Phase"] == phase]["Wert"].values
             if len(phase_vals) > 0:
                 mean_val = float(np.mean(phase_vals))
-                ax.hlines(
-                    mean_val,
-                    phase_x[phase] - 0.28, phase_x[phase] + 0.28,
-                    color="#C1272D", linewidth=2.8, zorder=6,
-                )
-                ax.text(
-                    phase_x[phase] + 0.32, mean_val,
-                    f"{mean_val:.3f}",
-                    fontsize=7.5, fontweight="bold",
-                    color="#C1272D", va="center", ha="left", zorder=7,
-                )
+                mean_vals_console.append((phase, mean_val))
+
+        # Konsolen-Kontrollausgabe pro Übung
+        mean_str = " | ".join(f"{p}: {v:.3f}" for p, v in mean_vals_console)
+        print(f"    {ex_name:22s} → {mean_str}")
 
         peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
         label_info = []
@@ -1341,7 +1356,7 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
 
         ax.set_xticks(range(len(phase_order)))
         ax.set_xticklabels(phase_order, fontsize=11)
-        ax.set_xlim(-0.1, len(phase_order) - 1 + 0.1)
+        ax.set_xlim(-0.45, len(phase_order) - 1 + 0.45)
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
         unit = _get_unit_label(ex_name)
         ax.set_ylabel(unit, fontsize=10)
@@ -1353,6 +1368,7 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
 
+        """
         # Legende für Gruppenmittelwert (nur im ersten Subplot)
         if idx == 0:
             from matplotlib.lines import Line2D
@@ -1365,13 +1381,31 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
                 fontsize=8, framealpha=0.9,
             )
 
-        # Häufigkeitstabelle
+        # Mini-Legende in jedem Subplot (nur das Notwendigste)
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Patch
+        legend_handles = [
+            Line2D([0], [0], marker='o', color='w',
+                   markerfacecolor="#666666", markersize=9,
+                   label="Bestleistung"),
+            Patch(facecolor="#999999", alpha=0.25, label="Verteilung"),
+            Line2D([0], [0], color="#666666", linewidth=3.0, label="Mittelwert"),
+        ]
+        ax.legend(
+            handles=legend_handles, loc="upper right",
+            fontsize=7, framealpha=0.9, handlelength=1.5, borderpad=0.4,
+        )
+        """
+
+        # Häufigkeitstabelle – Phasen als Datenzeile (statt als Header)
         ax_table.axis("off")
-        table_data = [[peak_phase_counts[p] for p in phase_order]]
+        table_data = [
+            list(phase_order),                               # Zeile 1: PER, OVU, LUT
+            [peak_phase_counts[p] for p in phase_order],     # Zeile 2: Zahlen
+        ]
         tbl = ax_table.table(
             cellText=table_data,
-            colLabels=phase_order,
-            rowLabels=["Bestleistung\nin Phase"],
+            rowLabels=["Bestleistung\nin Phase", "Anzahl"],
             cellLoc="center",
             loc="center",
         )
@@ -1379,10 +1413,16 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         tbl.set_fontsize(10)
         tbl.scale(1.0, 1.8)
 
+        # Obere Zeile: farbige Phasen-Zellen
         for j, phase in enumerate(phase_order):
             tbl[0, j].set_facecolor(phase_colors[phase])
             tbl[0, j].set_text_props(color="white", fontweight="bold")
+            # Untere Zeile: Zahlen fett
             tbl[1, j].set_text_props(fontweight="bold", fontsize=12)
+
+        # Alle Zellen zusätzlich vertikal zentrieren (besonders wichtig für rowLabels mit \n)
+        for cell in tbl.get_celld().values():
+            cell.set_text_props(va="center", ha="center")
 
     # Leere Subplots ausblenden
     for idx in range(n_ex, n_rows * n_cols):
@@ -1392,9 +1432,9 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         axes[grid_row + 1, grid_col].set_visible(False)
 
     fig.suptitle(
-        "Individuelle Bestleistung pro Probandin – mit Gruppenmittelwert\n"
+        "Individuelle Bestleistung pro Probandin (mit Gruppenverteilung)\n"
         "(großer Punkt = Bestleistung; fett = Konsistenz in ≥3 Übungen | "
-        "Violine = Gruppenverteilung | roter Strich = Gruppenmittelwert)",
+        "Violine = Gruppenverteilung",
         fontsize=12, fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 0.95, 0.92])
