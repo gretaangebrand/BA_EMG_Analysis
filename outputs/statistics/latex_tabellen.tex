@@ -1,28 +1,29 @@
 % Automatisch generiert von 08_statistical_analysis.py
+% Friedman-Test | Post-hoc: Wilcoxon, Bonferroni
 
 \begin{table}[H]
   \centering
   \caption{EMG-Kennwerte – CMJ bilateral (Gesamt)}
   \label{tab:CMJ_bilateral_Gesamt}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 18.7 $\pm$ 8.0 & 22.0 $\pm$ 7.4 & 24.3 $\pm$ 8.0 & ANOVA & 0{,}246 & 0{,}144 \\
-     & peak & 70.6 $\pm$ 20.0 & 83.7 $\pm$ 16.9 & 91.3 $\pm$ 40.8 & ANOVA & 0{,}354 & 0{,}109 \\
+    M.~biceps femoris & mean & 18.7 $\pm$ 8.0 & 22.0 $\pm$ 7.4 & 24.3 $\pm$ 8.0 & 1{,}40 & 0{,}497 & 0{,}070 \\
+     & peak & 70.6 $\pm$ 20.0 & 83.7 $\pm$ 16.9 & 91.3 $\pm$ 40.8 & 0{,}80 & 0{,}670 & 0{,}040 \\
     \hline
-    M.~gastrocnemius medialis & mean & 22.9 $\pm$ 5.5 & 21.4 $\pm$ 4.2 & 22.5 $\pm$ 6.1 & ANOVA & 0{,}778 & 0{,}028 \\
-     & peak & 85.7 $\pm$ 16.8 & 79.7 $\pm$ 7.9 & 84.3 $\pm$ 26.0 & Friedman & 1{,}000 & -- \\
+    M.~gastrocnemius medialis & mean & 22.9 $\pm$ 5.5 & 21.4 $\pm$ 4.2 & 22.5 $\pm$ 6.1 & 0{,}60 & 0{,}741 & 0{,}030 \\
+     & peak & 85.7 $\pm$ 16.8 & 79.7 $\pm$ 7.9 & 84.3 $\pm$ 26.0 & 0{,}00 & 1{,}000 & 0{,}000 \\
     \hline
-    M.~gluteus medius & mean & 18.7 $\pm$ 8.3 & 21.0 $\pm$ 7.3 & 27.2 $\pm$ 12.2 & Friedman & 0{,}273 & -- \\
-     & peak & 68.0 $\pm$ 26.9 & 79.6 $\pm$ 26.3 & 98.7 $\pm$ 47.0 & Friedman & 0{,}202 & -- \\
+    M.~gluteus medius & mean & 18.7 $\pm$ 8.3 & 21.0 $\pm$ 7.3 & 27.2 $\pm$ 12.2 & 2{,}60 & 0{,}273 & 0{,}130 \\
+     & peak & 68.0 $\pm$ 26.9 & 79.6 $\pm$ 26.3 & 98.7 $\pm$ 47.0 & 3{,}20 & 0{,}202 & 0{,}160 \\
     \hline
-    M.~semitendinosus & mean & 24.2 $\pm$ 7.6 & 23.8 $\pm$ 9.8 & 24.7 $\pm$ 7.7 & ANOVA & 0{,}966 & 0{,}004 \\
-     & peak & 82.2 $\pm$ 26.4 & 77.6 $\pm$ 32.0 & 76.6 $\pm$ 17.4 & ANOVA & 0{,}849 & 0{,}018 \\
+    M.~semitendinosus & mean & 24.2 $\pm$ 7.6 & 23.8 $\pm$ 9.8 & 24.7 $\pm$ 7.7 & 0{,}00 & 1{,}000 & 0{,}000 \\
+     & peak & 82.2 $\pm$ 26.4 & 77.6 $\pm$ 32.0 & 76.6 $\pm$ 17.4 & 0{,}80 & 0{,}670 & 0{,}040 \\
     \hline
-    M.~vastus lateralis & mean & 28.3 $\pm$ 17.0 & 34.4 $\pm$ 8.9 & 34.6 $\pm$ 15.5 & Friedman & 0{,}067 & -- \\
-     & peak & 80.3 $\pm$ 41.7 & 95.9 $\pm$ 18.4 & 102.5 $\pm$ 38.4 & Friedman & 0{,}301 & -- \\
+    M.~vastus lateralis & mean & 28.3 $\pm$ 17.0 & 34.4 $\pm$ 8.9 & 34.6 $\pm$ 15.5 & 5{,}40 & 0{,}067 & 0{,}270 \\
+     & peak & 80.3 $\pm$ 41.7 & 95.9 $\pm$ 18.4 & 102.5 $\pm$ 38.4 & 2{,}40 & 0{,}301 & 0{,}120 \\
     \hline
   \end{tabular}
 \end{table}
@@ -32,24 +33,24 @@
   \caption{EMG-Kennwerte – CMJ bilateral (Landung)}
   \label{tab:CMJ_bilateral_Landung}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 24.1 $\pm$ 10.6 & 26.4 $\pm$ 13.8 & 32.3 $\pm$ 15.0 & ANOVA & 0{,}328 & 0{,}117 \\
-     & peak & 43.1 $\pm$ 20.7 & 51.2 $\pm$ 27.5 & 59.1 $\pm$ 37.1 & Friedman & 0{,}741 & -- \\
+    M.~biceps femoris & mean & 24.1 $\pm$ 10.6 & 26.4 $\pm$ 13.8 & 32.3 $\pm$ 15.0 & 0{,}80 & 0{,}670 & 0{,}040 \\
+     & peak & 43.1 $\pm$ 20.7 & 51.2 $\pm$ 27.5 & 59.1 $\pm$ 37.1 & 0{,}60 & 0{,}741 & 0{,}030 \\
     \hline
-    M.~gastrocnemius medialis & mean & 20.1 $\pm$ 7.4 & 22.3 $\pm$ 9.7 & 19.8 $\pm$ 9.2 & ANOVA & 0{,}815 & 0{,}023 \\
-     & peak & 58.5 $\pm$ 25.5 & 53.2 $\pm$ 20.1 & 43.9 $\pm$ 19.6 & ANOVA & 0{,}357 & 0{,}108 \\
+    M.~gastrocnemius medialis & mean & 20.1 $\pm$ 7.4 & 22.3 $\pm$ 9.7 & 19.8 $\pm$ 9.2 & 0{,}20 & 0{,}905 & 0{,}010 \\
+     & peak & 58.5 $\pm$ 25.5 & 53.2 $\pm$ 20.1 & 43.9 $\pm$ 19.6 & 1{,}40 & 0{,}497 & 0{,}070 \\
     \hline
-    M.~gluteus medius & mean & 23.4 $\pm$ 13.6 & 25.9 $\pm$ 9.7 & 37.4 $\pm$ 22.8 & Friedman & 0{,}045 & -- \\
-     & peak & 44.6 $\pm$ 23.2 & 60.6 $\pm$ 23.7 & 65.4 $\pm$ 33.0 & ANOVA$^\text{GG}$ & 0{,}256 & 0{,}140 \\
+    M.~gluteus medius & mean & 23.4 $\pm$ 13.6 & 25.9 $\pm$ 9.7 & 37.4 $\pm$ 22.8 & 6{,}20 & 0{,}045 & 0{,}310 \\
+     & peak & 44.6 $\pm$ 23.2 & 60.6 $\pm$ 23.7 & 65.4 $\pm$ 33.0 & 4{,}20 & 0{,}122 & 0{,}210 \\
     \hline
-    M.~semitendinosus & mean & 26.1 $\pm$ 11.0 & 23.8 $\pm$ 8.2 & 31.6 $\pm$ 17.3 & ANOVA & 0{,}397 & 0{,}098 \\
-     & peak & 55.4 $\pm$ 20.7 & 47.7 $\pm$ 14.0 & 59.3 $\pm$ 26.0 & ANOVA & 0{,}541 & 0{,}066 \\
+    M.~semitendinosus & mean & 26.1 $\pm$ 11.0 & 23.8 $\pm$ 8.2 & 31.6 $\pm$ 17.3 & 0{,}60 & 0{,}741 & 0{,}030 \\
+     & peak & 55.4 $\pm$ 20.7 & 47.7 $\pm$ 14.0 & 59.3 $\pm$ 26.0 & 2{,}60 & 0{,}273 & 0{,}130 \\
     \hline
-    M.~vastus lateralis & mean & 30.1 $\pm$ 15.4 & 47.1 $\pm$ 9.8 & 50.8 $\pm$ 13.3 & ANOVA & 0{,}006 & 0{,}435 \\
-     & peak & 48.4 $\pm$ 24.5 & 77.7 $\pm$ 14.3 & 90.7 $\pm$ 35.8 & Friedman & 0{,}006 & -- \\
+    M.~vastus lateralis & mean & 30.1 $\pm$ 15.4 & 47.1 $\pm$ 9.8 & 50.8 $\pm$ 13.3 & 12{,}20 & 0{,}002 & 0{,}610 \\
+     & peak & 48.4 $\pm$ 24.5 & 77.7 $\pm$ 14.3 & 90.7 $\pm$ 35.8 & 10{,}40 & 0{,}006 & 0{,}520 \\
     \hline
   \end{tabular}
 \end{table}
@@ -59,24 +60,24 @@
   \caption{EMG-Kennwerte – CMJ einbeinig R (Gesamt)}
   \label{tab:CMJ_einbeinig_R_Gesamt}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 26.1 $\pm$ 12.3 & 28.0 $\pm$ 10.4 & 32.1 $\pm$ 9.3 & ANOVA & 0{,}285 & 0{,}118 \\
-     & peak & 83.3 $\pm$ 24.1 & 80.3 $\pm$ 26.0 & 95.4 $\pm$ 23.3 & ANOVA & 0{,}190 & 0{,}153 \\
+    M.~biceps femoris & mean & 26.1 $\pm$ 12.3 & 28.0 $\pm$ 10.4 & 32.1 $\pm$ 9.3 & 3{,}45 & 0{,}178 & 0{,}157 \\
+     & peak & 83.3 $\pm$ 24.1 & 80.3 $\pm$ 26.0 & 95.4 $\pm$ 23.3 & 1{,}64 & 0{,}441 & 0{,}074 \\
     \hline
-    M.~gastrocnemius medialis & mean & 35.8 $\pm$ 11.8 & 29.9 $\pm$ 6.7 & 27.3 $\pm$ 9.6 & Friedman & 0{,}529 & -- \\
-     & peak & 107.8 $\pm$ 31.7 & 94.4 $\pm$ 14.7 & 81.8 $\pm$ 27.7 & ANOVA & 0{,}076 & 0{,}227 \\
+    M.~gastrocnemius medialis & mean & 35.8 $\pm$ 11.8 & 29.9 $\pm$ 6.7 & 27.3 $\pm$ 9.6 & 1{,}27 & 0{,}529 & 0{,}058 \\
+     & peak & 107.8 $\pm$ 31.7 & 94.4 $\pm$ 14.7 & 81.8 $\pm$ 27.7 & 4{,}91 & 0{,}086 & 0{,}223 \\
     \hline
-    M.~gluteus medius & mean & 35.9 $\pm$ 17.6 & 35.2 $\pm$ 20.6 & 58.5 $\pm$ 32.6 & ANOVA & 0{,}061 & 0{,}244 \\
-     & peak & 95.6 $\pm$ 39.9 & 95.8 $\pm$ 49.6 & 144.2 $\pm$ 72.1 & ANOVA & 0{,}105 & 0{,}202 \\
+    M.~gluteus medius & mean & 35.9 $\pm$ 17.6 & 35.2 $\pm$ 20.6 & 58.5 $\pm$ 32.6 & 2{,}36 & 0{,}307 & 0{,}107 \\
+     & peak & 95.6 $\pm$ 39.9 & 95.8 $\pm$ 49.6 & 144.2 $\pm$ 72.1 & 2{,}36 & 0{,}307 & 0{,}107 \\
     \hline
-    M.~semitendinosus & mean & 36.8 $\pm$ 17.8 & 33.8 $\pm$ 11.9 & 31.1 $\pm$ 7.5 & ANOVA & 0{,}540 & 0{,}060 \\
-     & peak & 90.2 $\pm$ 43.4 & 91.8 $\pm$ 30.6 & 85.5 $\pm$ 27.0 & ANOVA & 0{,}891 & 0{,}012 \\
+    M.~semitendinosus & mean & 36.8 $\pm$ 17.8 & 33.8 $\pm$ 11.9 & 31.1 $\pm$ 7.5 & 1{,}27 & 0{,}529 & 0{,}058 \\
+     & peak & 90.2 $\pm$ 43.4 & 91.8 $\pm$ 30.6 & 85.5 $\pm$ 27.0 & 2{,}36 & 0{,}307 & 0{,}107 \\
     \hline
-    M.~vastus lateralis & mean & 31.4 $\pm$ 17.4 & 39.3 $\pm$ 10.7 & 42.3 $\pm$ 12.6 & ANOVA & 0{,}144 & 0{,}176 \\
-     & peak & 81.7 $\pm$ 41.3 & 100.2 $\pm$ 28.8 & 113.2 $\pm$ 42.3 & ANOVA & 0{,}090 & 0{,}214 \\
+    M.~vastus lateralis & mean & 31.4 $\pm$ 17.4 & 39.3 $\pm$ 10.7 & 42.3 $\pm$ 12.6 & 1{,}64 & 0{,}441 & 0{,}074 \\
+     & peak & 81.7 $\pm$ 41.3 & 100.2 $\pm$ 28.8 & 113.2 $\pm$ 42.3 & 4{,}55 & 0{,}103 & 0{,}207 \\
     \hline
   \end{tabular}
 \end{table}
@@ -86,24 +87,24 @@
   \caption{EMG-Kennwerte – CMJ einbeinig R (Landung)}
   \label{tab:CMJ_einbeinig_R_Landung}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 32.2 $\pm$ 13.9 & 31.5 $\pm$ 13.2 & 43.7 $\pm$ 10.3 & ANOVA & 0{,}032 & 0{,}291 \\
-     & peak & 57.7 $\pm$ 21.9 & 58.5 $\pm$ 17.9 & 78.2 $\pm$ 20.9 & ANOVA & 0{,}063 & 0{,}242 \\
+    M.~biceps femoris & mean & 32.2 $\pm$ 13.9 & 31.5 $\pm$ 13.2 & 43.7 $\pm$ 10.3 & 5{,}09 & 0{,}078 & 0{,}231 \\
+     & peak & 57.7 $\pm$ 21.9 & 58.5 $\pm$ 17.9 & 78.2 $\pm$ 20.9 & 2{,}36 & 0{,}307 & 0{,}107 \\
     \hline
-    M.~gastrocnemius medialis & mean & 32.5 $\pm$ 10.1 & 29.6 $\pm$ 7.4 & 24.7 $\pm$ 9.0 & ANOVA & 0{,}230 & 0{,}137 \\
-     & peak & 83.9 $\pm$ 22.1 & 65.6 $\pm$ 19.2 & 56.5 $\pm$ 21.5 & ANOVA & 0{,}035 & 0{,}284 \\
+    M.~gastrocnemius medialis & mean & 32.5 $\pm$ 10.1 & 29.6 $\pm$ 7.4 & 24.7 $\pm$ 9.0 & 2{,}91 & 0{,}234 & 0{,}132 \\
+     & peak & 83.9 $\pm$ 22.1 & 65.6 $\pm$ 19.2 & 56.5 $\pm$ 21.5 & 7{,}09 & 0{,}029 & 0{,}322 \\
     \hline
-    M.~gluteus medius & mean & 53.1 $\pm$ 27.8 & 54.8 $\pm$ 30.9 & 77.7 $\pm$ 32.0 & ANOVA & 0{,}116 & 0{,}194 \\
-     & peak & 84.5 $\pm$ 36.8 & 88.2 $\pm$ 48.6 & 121.7 $\pm$ 49.3 & ANOVA & 0{,}140 & 0{,}179 \\
+    M.~gluteus medius & mean & 53.1 $\pm$ 27.8 & 54.8 $\pm$ 30.9 & 77.7 $\pm$ 32.0 & 6{,}73 & 0{,}035 & 0{,}306 \\
+     & peak & 84.5 $\pm$ 36.8 & 88.2 $\pm$ 48.6 & 121.7 $\pm$ 49.3 & 3{,}45 & 0{,}178 & 0{,}157 \\
     \hline
-    M.~semitendinosus & mean & 44.2 $\pm$ 22.6 & 43.2 $\pm$ 16.8 & 42.1 $\pm$ 14.8 & ANOVA & 0{,}955 & 0{,}005 \\
-     & peak & 68.4 $\pm$ 37.1 & 73.4 $\pm$ 21.5 & 70.2 $\pm$ 22.7 & Friedman & 0{,}234 & -- \\
+    M.~semitendinosus & mean & 44.2 $\pm$ 22.6 & 43.2 $\pm$ 16.8 & 42.1 $\pm$ 14.8 & 2{,}18 & 0{,}336 & 0{,}099 \\
+     & peak & 68.4 $\pm$ 37.1 & 73.4 $\pm$ 21.5 & 70.2 $\pm$ 22.7 & 2{,}91 & 0{,}234 & 0{,}132 \\
     \hline
-    M.~vastus lateralis & mean & 39.0 $\pm$ 17.8 & 43.9 $\pm$ 8.2 & 53.0 $\pm$ 15.9 & ANOVA & 0{,}108 & 0{,}199 \\
-     & peak & 58.5 $\pm$ 24.2 & 61.2 $\pm$ 15.4 & 79.5 $\pm$ 26.0 & ANOVA & 0{,}118 & 0{,}193 \\
+    M.~vastus lateralis & mean & 39.0 $\pm$ 17.8 & 43.9 $\pm$ 8.2 & 53.0 $\pm$ 15.9 & 2{,}91 & 0{,}234 & 0{,}132 \\
+     & peak & 58.5 $\pm$ 24.2 & 61.2 $\pm$ 15.4 & 79.5 $\pm$ 26.0 & 5{,}64 & 0{,}060 & 0{,}256 \\
     \hline
   \end{tabular}
 \end{table}
@@ -113,24 +114,24 @@
   \caption{EMG-Kennwerte – DJ bilateral (Bodenkontakt)}
   \label{tab:DJ_bilateral_Bodenkontakt}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 49.9 $\pm$ 15.1 & 49.9 $\pm$ 9.8 & 55.1 $\pm$ 11.3 & ANOVA & 0{,}541 & 0{,}060 \\
-     & peak & 96.6 $\pm$ 7.4 & 95.3 $\pm$ 10.3 & 93.5 $\pm$ 11.6 & Friedman & 0{,}148 & -- \\
+    M.~biceps femoris & mean & 49.9 $\pm$ 15.1 & 49.9 $\pm$ 9.8 & 55.1 $\pm$ 11.3 & 2{,}18 & 0{,}336 & 0{,}099 \\
+     & peak & 96.6 $\pm$ 7.4 & 95.3 $\pm$ 10.3 & 93.5 $\pm$ 11.6 & 3{,}82 & 0{,}148 & 0{,}174 \\
     \hline
-    M.~gastrocnemius medialis & mean & 58.4 $\pm$ 14.2 & 55.5 $\pm$ 8.5 & 58.2 $\pm$ 10.3 & ANOVA & 0{,}640 & 0{,}044 \\
-     & peak & 95.1 $\pm$ 13.1 & 94.5 $\pm$ 8.0 & 92.4 $\pm$ 11.3 & Friedman & 0{,}529 & -- \\
+    M.~gastrocnemius medialis & mean & 58.4 $\pm$ 14.2 & 55.5 $\pm$ 8.5 & 58.2 $\pm$ 10.3 & 2{,}36 & 0{,}307 & 0{,}107 \\
+     & peak & 95.1 $\pm$ 13.1 & 94.5 $\pm$ 8.0 & 92.4 $\pm$ 11.3 & 1{,}27 & 0{,}529 & 0{,}058 \\
     \hline
-    M.~gluteus medius & mean & 53.4 $\pm$ 10.8 & 55.3 $\pm$ 12.2 & 57.5 $\pm$ 8.6 & ANOVA & 0{,}684 & 0{,}037 \\
-     & peak & 98.5 $\pm$ 1.4 & 98.1 $\pm$ 3.8 & 97.0 $\pm$ 7.9 & Friedman & 0{,}307 & -- \\
+    M.~gluteus medius & mean & 53.4 $\pm$ 10.8 & 55.3 $\pm$ 12.2 & 57.5 $\pm$ 8.6 & 3{,}45 & 0{,}178 & 0{,}157 \\
+     & peak & 98.5 $\pm$ 1.4 & 98.1 $\pm$ 3.8 & 97.0 $\pm$ 7.9 & 2{,}36 & 0{,}307 & 0{,}107 \\
     \hline
-    M.~semitendinosus & mean & 54.8 $\pm$ 9.0 & 52.3 $\pm$ 13.8 & 51.0 $\pm$ 8.5 & ANOVA & 0{,}596 & 0{,}050 \\
-     & peak & 98.4 $\pm$ 2.4 & 88.5 $\pm$ 20.0 & 96.8 $\pm$ 5.2 & Friedman & 0{,}529 & -- \\
+    M.~semitendinosus & mean & 54.8 $\pm$ 9.0 & 52.3 $\pm$ 13.8 & 51.0 $\pm$ 8.5 & 3{,}82 & 0{,}148 & 0{,}174 \\
+     & peak & 98.4 $\pm$ 2.4 & 88.5 $\pm$ 20.0 & 96.8 $\pm$ 5.2 & 1{,}27 & 0{,}529 & 0{,}058 \\
     \hline
-    M.~vastus lateralis & mean & 57.5 $\pm$ 12.4 & 61.4 $\pm$ 8.2 & 58.5 $\pm$ 7.3 & ANOVA & 0{,}460 & 0{,}075 \\
-     & peak & 98.6 $\pm$ 1.3 & 97.4 $\pm$ 4.0 & 96.0 $\pm$ 7.6 & Friedman & 0{,}529 & -- \\
+    M.~vastus lateralis & mean & 57.5 $\pm$ 12.4 & 61.4 $\pm$ 8.2 & 58.5 $\pm$ 7.3 & 2{,}36 & 0{,}307 & 0{,}107 \\
+     & peak & 98.6 $\pm$ 1.3 & 97.4 $\pm$ 4.0 & 96.0 $\pm$ 7.6 & 1{,}27 & 0{,}529 & 0{,}058 \\
     \hline
   \end{tabular}
 \end{table}
@@ -140,24 +141,24 @@
   \caption{EMG-Kennwerte – DJ bilateral (Gesamt)}
   \label{tab:DJ_bilateral_Gesamt}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 27.3 $\pm$ 5.9 & 25.8 $\pm$ 5.0 & 34.2 $\pm$ 6.2 & ANOVA & 0{,}011 & 0{,}361 \\
-     & peak & 98.7 $\pm$ 2.3 & 98.4 $\pm$ 2.0 & 98.6 $\pm$ 1.1 & Friedman & 0{,}307 & -- \\
+    M.~biceps femoris & mean & 27.3 $\pm$ 5.9 & 25.8 $\pm$ 5.0 & 34.2 $\pm$ 6.2 & 10{,}36 & 0{,}006 & 0{,}471 \\
+     & peak & 98.7 $\pm$ 2.3 & 98.4 $\pm$ 2.0 & 98.6 $\pm$ 1.1 & 2{,}36 & 0{,}307 & 0{,}107 \\
     \hline
-    M.~gastrocnemius medialis & mean & 35.8 $\pm$ 7.9 & 31.4 $\pm$ 5.1 & 35.1 $\pm$ 6.3 & Friedman & 0{,}078 & -- \\
-     & peak & 99.1 $\pm$ 0.9 & 99.0 $\pm$ 0.6 & 97.7 $\pm$ 2.3 & Friedman & 0{,}529 & -- \\
+    M.~gastrocnemius medialis & mean & 35.8 $\pm$ 7.9 & 31.4 $\pm$ 5.1 & 35.1 $\pm$ 6.3 & 5{,}09 & 0{,}078 & 0{,}231 \\
+     & peak & 99.1 $\pm$ 0.9 & 99.0 $\pm$ 0.6 & 97.7 $\pm$ 2.3 & 1{,}27 & 0{,}529 & 0{,}058 \\
     \hline
-    M.~gluteus medius & mean & 29.2 $\pm$ 7.5 & 33.6 $\pm$ 7.6 & 33.8 $\pm$ 6.6 & ANOVA & 0{,}293 & 0{,}116 \\
-     & peak & 98.5 $\pm$ 1.4 & 99.3 $\pm$ 0.5 & 99.5 $\pm$ 0.6 & Friedman & 0{,}148 & -- \\
+    M.~gluteus medius & mean & 29.2 $\pm$ 7.5 & 33.6 $\pm$ 7.6 & 33.8 $\pm$ 6.6 & 4{,}55 & 0{,}103 & 0{,}207 \\
+     & peak & 98.5 $\pm$ 1.4 & 99.3 $\pm$ 0.5 & 99.5 $\pm$ 0.6 & 3{,}82 & 0{,}148 & 0{,}174 \\
     \hline
-    M.~semitendinosus & mean & 34.7 $\pm$ 7.4 & 32.4 $\pm$ 6.0 & 34.4 $\pm$ 8.0 & ANOVA$^\text{GG}$ & 0{,}678 & 0{,}038 \\
-     & peak & 98.7 $\pm$ 2.4 & 98.2 $\pm$ 2.5 & 99.5 $\pm$ 0.5 & Friedman & 0{,}913 & -- \\
+    M.~semitendinosus & mean & 34.7 $\pm$ 7.4 & 32.4 $\pm$ 6.0 & 34.4 $\pm$ 8.0 & 0{,}55 & 0{,}761 & 0{,}025 \\
+     & peak & 98.7 $\pm$ 2.4 & 98.2 $\pm$ 2.5 & 99.5 $\pm$ 0.5 & 0{,}18 & 0{,}913 & 0{,}008 \\
     \hline
-    M.~vastus lateralis & mean & 32.5 $\pm$ 7.1 & 38.2 $\pm$ 8.2 & 35.9 $\pm$ 9.5 & ANOVA & 0{,}105 & 0{,}202 \\
-     & peak & 98.6 $\pm$ 1.3 & 98.5 $\pm$ 1.5 & 99.1 $\pm$ 0.7 & ANOVA & 0{,}476 & 0{,}072 \\
+    M.~vastus lateralis & mean & 32.5 $\pm$ 7.1 & 38.2 $\pm$ 8.2 & 35.9 $\pm$ 9.5 & 5{,}09 & 0{,}078 & 0{,}231 \\
+     & peak & 98.6 $\pm$ 1.3 & 98.5 $\pm$ 1.5 & 99.1 $\pm$ 0.7 & 0{,}00 & 1{,}000 & 0{,}000 \\
     \hline
   \end{tabular}
 \end{table}
@@ -167,24 +168,24 @@
   \caption{EMG-Kennwerte – DJ bilateral (Landung2)}
   \label{tab:DJ_bilateral_Landung2}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 25.3 $\pm$ 15.6 & 20.6 $\pm$ 10.5 & 34.3 $\pm$ 21.1 & Friedman & 0{,}078 & -- \\
-     & peak & 44.1 $\pm$ 30.1 & 41.0 $\pm$ 26.1 & 59.9 $\pm$ 28.7 & ANOVA & 0{,}093 & 0{,}211 \\
+    M.~biceps femoris & mean & 25.3 $\pm$ 15.6 & 20.6 $\pm$ 10.5 & 34.3 $\pm$ 21.1 & 5{,}09 & 0{,}078 & 0{,}231 \\
+     & peak & 44.1 $\pm$ 30.1 & 41.0 $\pm$ 26.1 & 59.9 $\pm$ 28.7 & 4{,}55 & 0{,}103 & 0{,}207 \\
     \hline
-    M.~gastrocnemius medialis & mean & 26.7 $\pm$ 11.8 & 26.6 $\pm$ 9.6 & 24.9 $\pm$ 6.1 & ANOVA & 0{,}779 & 0{,}025 \\
-     & peak & 63.1 $\pm$ 19.2 & 58.6 $\pm$ 23.9 & 58.3 $\pm$ 22.2 & ANOVA & 0{,}754 & 0{,}028 \\
+    M.~gastrocnemius medialis & mean & 26.7 $\pm$ 11.8 & 26.6 $\pm$ 9.6 & 24.9 $\pm$ 6.1 & 0{,}73 & 0{,}695 & 0{,}033 \\
+     & peak & 63.1 $\pm$ 19.2 & 58.6 $\pm$ 23.9 & 58.3 $\pm$ 22.2 & 0{,}18 & 0{,}913 & 0{,}008 \\
     \hline
-    M.~gluteus medius & mean & 27.6 $\pm$ 9.3 & 34.8 $\pm$ 11.8 & 36.8 $\pm$ 14.2 & ANOVA & 0{,}054 & 0{,}253 \\
-     & peak & 52.5 $\pm$ 18.2 & 70.0 $\pm$ 16.8 & 64.0 $\pm$ 26.2 & ANOVA & 0{,}096 & 0{,}209 \\
+    M.~gluteus medius & mean & 27.6 $\pm$ 9.3 & 34.8 $\pm$ 11.8 & 36.8 $\pm$ 14.2 & 2{,}91 & 0{,}234 & 0{,}132 \\
+     & peak & 52.5 $\pm$ 18.2 & 70.0 $\pm$ 16.8 & 64.0 $\pm$ 26.2 & 4{,}55 & 0{,}103 & 0{,}207 \\
     \hline
-    M.~semitendinosus & mean & 25.9 $\pm$ 13.5 & 29.6 $\pm$ 10.5 & 26.9 $\pm$ 15.7 & ANOVA & 0{,}697 & 0{,}035 \\
-     & peak & 52.9 $\pm$ 28.7 & 59.2 $\pm$ 21.5 & 53.8 $\pm$ 33.0 & Friedman & 0{,}529 & -- \\
+    M.~semitendinosus & mean & 25.9 $\pm$ 13.5 & 29.6 $\pm$ 10.5 & 26.9 $\pm$ 15.7 & 2{,}91 & 0{,}234 & 0{,}132 \\
+     & peak & 52.9 $\pm$ 28.7 & 59.2 $\pm$ 21.5 & 53.8 $\pm$ 33.0 & 1{,}27 & 0{,}529 & 0{,}058 \\
     \hline
-    M.~vastus lateralis & mean & 35.3 $\pm$ 14.4 & 44.6 $\pm$ 12.2 & 42.1 $\pm$ 17.9 & Friedman & 0{,}441 & -- \\
-     & peak & 55.2 $\pm$ 23.2 & 69.2 $\pm$ 20.4 & 64.8 $\pm$ 25.6 & ANOVA & 0{,}326 & 0{,}106 \\
+    M.~vastus lateralis & mean & 35.3 $\pm$ 14.4 & 44.6 $\pm$ 12.2 & 42.1 $\pm$ 17.9 & 1{,}64 & 0{,}441 & 0{,}074 \\
+     & peak & 55.2 $\pm$ 23.2 & 69.2 $\pm$ 20.4 & 64.8 $\pm$ 25.6 & 2{,}18 & 0{,}336 & 0{,}099 \\
     \hline
   \end{tabular}
 \end{table}
@@ -194,24 +195,24 @@
   \caption{EMG-Kennwerte – SQ bilateral (Gesamt)}
   \label{tab:SQ_bilateral_Gesamt}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 7.3 $\pm$ 4.9 & 6.4 $\pm$ 2.6 & 9.3 $\pm$ 5.1 & ANOVA & 0{,}157 & 0{,}169 \\
-     & peak & 16.1 $\pm$ 10.0 & 14.4 $\pm$ 5.0 & 22.1 $\pm$ 12.1 & ANOVA & 0{,}049 & 0{,}260 \\
+    M.~biceps femoris & mean & 7.3 $\pm$ 4.9 & 6.4 $\pm$ 2.6 & 9.3 $\pm$ 5.1 & 1{,}64 & 0{,}441 & 0{,}074 \\
+     & peak & 16.1 $\pm$ 10.0 & 14.4 $\pm$ 5.0 & 22.1 $\pm$ 12.1 & 2{,}91 & 0{,}234 & 0{,}132 \\
     \hline
-    M.~gastrocnemius medialis & mean & 4.6 $\pm$ 2.9 & 5.2 $\pm$ 3.4 & 4.7 $\pm$ 3.2 & Friedman & 0{,}761 & -- \\
-     & peak & 9.6 $\pm$ 6.5 & 10.6 $\pm$ 6.8 & 9.4 $\pm$ 5.9 & Friedman & 0{,}913 & -- \\
+    M.~gastrocnemius medialis & mean & 4.6 $\pm$ 2.9 & 5.2 $\pm$ 3.4 & 4.7 $\pm$ 3.2 & 0{,}55 & 0{,}761 & 0{,}025 \\
+     & peak & 9.6 $\pm$ 6.5 & 10.6 $\pm$ 6.8 & 9.4 $\pm$ 5.9 & 0{,}18 & 0{,}913 & 0{,}008 \\
     \hline
-    M.~gluteus medius & mean & 6.4 $\pm$ 4.3 & 4.6 $\pm$ 2.4 & 8.9 $\pm$ 6.1 & ANOVA & 0{,}068 & 0{,}235 \\
-     & peak & 19.8 $\pm$ 12.3 & 14.8 $\pm$ 11.1 & 24.1 $\pm$ 13.3 & ANOVA & 0{,}194 & 0{,}151 \\
+    M.~gluteus medius & mean & 6.4 $\pm$ 4.3 & 4.6 $\pm$ 2.4 & 8.9 $\pm$ 6.1 & 2{,}36 & 0{,}307 & 0{,}107 \\
+     & peak & 19.8 $\pm$ 12.3 & 14.8 $\pm$ 11.1 & 24.1 $\pm$ 13.3 & 1{,}64 & 0{,}441 & 0{,}074 \\
     \hline
-    M.~semitendinosus & mean & 8.5 $\pm$ 4.2 & 7.7 $\pm$ 4.3 & 8.2 $\pm$ 3.2 & ANOVA & 0{,}723 & 0{,}032 \\
-     & peak & 20.1 $\pm$ 11.0 & 17.5 $\pm$ 10.9 & 21.6 $\pm$ 7.7 & ANOVA & 0{,}496 & 0{,}068 \\
+    M.~semitendinosus & mean & 8.5 $\pm$ 4.2 & 7.7 $\pm$ 4.3 & 8.2 $\pm$ 3.2 & 0{,}55 & 0{,}761 & 0{,}025 \\
+     & peak & 20.1 $\pm$ 11.0 & 17.5 $\pm$ 10.9 & 21.6 $\pm$ 7.7 & 3{,}82 & 0{,}148 & 0{,}174 \\
     \hline
-    M.~vastus lateralis & mean & 19.2 $\pm$ 12.7 & 23.1 $\pm$ 7.9 & 23.1 $\pm$ 11.7 & Friedman & 0{,}178 & -- \\
-     & peak & 41.3 $\pm$ 26.8 & 49.7 $\pm$ 19.5 & 47.1 $\pm$ 27.3 & Friedman & 0{,}148 & -- \\
+    M.~vastus lateralis & mean & 19.2 $\pm$ 12.7 & 23.1 $\pm$ 7.9 & 23.1 $\pm$ 11.7 & 3{,}45 & 0{,}178 & 0{,}157 \\
+     & peak & 41.3 $\pm$ 26.8 & 49.7 $\pm$ 19.5 & 47.1 $\pm$ 27.3 & 3{,}82 & 0{,}148 & 0{,}174 \\
     \hline
   \end{tabular}
 \end{table}
@@ -221,24 +222,24 @@
   \caption{EMG-Kennwerte – SQ einbeinig R (Gesamt)}
   \label{tab:SQ_einbeinig_R_Gesamt}
   \small
-  \begin{tabular}{l l c c c l c c}
+  \begin{tabular}{l l c c c c c c}
     \hline
-    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{Test} & \textbf{p} & \textbf{$\eta^2_p$} \\
+    \textbf{Muskel} & \textbf{Kennwert} & \textbf{PER} & \textbf{OVU} & \textbf{LUT} & \textbf{$\chi^2$} & \textbf{p} & \textbf{W} \\
     \hline
-    M.~biceps femoris & mean & 13.9 $\pm$ 8.4 & 16.4 $\pm$ 8.9 & 20.2 $\pm$ 9.4 & Friedman & 0{,}441 & -- \\
-     & peak & 29.8 $\pm$ 17.9 & 37.5 $\pm$ 22.6 & 44.1 $\pm$ 11.9 & ANOVA & 0{,}045 & 0{,}267 \\
+    M.~biceps femoris & mean & 13.9 $\pm$ 8.4 & 16.4 $\pm$ 8.9 & 20.2 $\pm$ 9.4 & 1{,}64 & 0{,}441 & 0{,}074 \\
+     & peak & 29.8 $\pm$ 17.9 & 37.5 $\pm$ 22.6 & 44.1 $\pm$ 11.9 & 6{,}55 & 0{,}038 & 0{,}298 \\
     \hline
-    M.~gastrocnemius medialis & mean & 11.1 $\pm$ 4.4 & 10.8 $\pm$ 4.4 & 8.5 $\pm$ 4.5 & ANOVA & 0{,}288 & 0{,}117 \\
-     & peak & 24.6 $\pm$ 10.1 & 25.5 $\pm$ 11.8 & 18.3 $\pm$ 9.0 & ANOVA & 0{,}184 & 0{,}156 \\
+    M.~gastrocnemius medialis & mean & 11.1 $\pm$ 4.4 & 10.8 $\pm$ 4.4 & 8.5 $\pm$ 4.5 & 1{,}27 & 0{,}529 & 0{,}058 \\
+     & peak & 24.6 $\pm$ 10.1 & 25.5 $\pm$ 11.8 & 18.3 $\pm$ 9.0 & 0{,}18 & 0{,}913 & 0{,}008 \\
     \hline
-    M.~gluteus medius & mean & 27.2 $\pm$ 15.4 & 28.4 $\pm$ 18.3 & 49.2 $\pm$ 28.2 & ANOVA & 0{,}041 & 0{,}273 \\
-     & peak & 59.6 $\pm$ 34.9 & 63.1 $\pm$ 46.9 & 101.3 $\pm$ 51.9 & ANOVA & 0{,}039 & 0{,}278 \\
+    M.~gluteus medius & mean & 27.2 $\pm$ 15.4 & 28.4 $\pm$ 18.3 & 49.2 $\pm$ 28.2 & 3{,}45 & 0{,}178 & 0{,}157 \\
+     & peak & 59.6 $\pm$ 34.9 & 63.1 $\pm$ 46.9 & 101.3 $\pm$ 51.9 & 5{,}09 & 0{,}078 & 0{,}231 \\
     \hline
-    M.~semitendinosus & mean & 28.6 $\pm$ 15.1 & 28.2 $\pm$ 10.6 & 26.5 $\pm$ 9.6 & ANOVA & 0{,}888 & 0{,}012 \\
-     & peak & 57.2 $\pm$ 27.4 & 57.7 $\pm$ 22.3 & 54.3 $\pm$ 23.6 & ANOVA & 0{,}936 & 0{,}007 \\
+    M.~semitendinosus & mean & 28.6 $\pm$ 15.1 & 28.2 $\pm$ 10.6 & 26.5 $\pm$ 9.6 & 0{,}00 & 1{,}000 & 0{,}000 \\
+     & peak & 57.2 $\pm$ 27.4 & 57.7 $\pm$ 22.3 & 54.3 $\pm$ 23.6 & 0{,}73 & 0{,}695 & 0{,}033 \\
     \hline
-    M.~vastus lateralis & mean & 27.6 $\pm$ 16.2 & 39.7 $\pm$ 15.0 & 40.8 $\pm$ 19.1 & ANOVA & 0{,}059 & 0{,}247 \\
-     & peak & 54.3 $\pm$ 32.0 & 78.6 $\pm$ 31.3 & 81.7 $\pm$ 35.1 & ANOVA & 0{,}068 & 0{,}236 \\
+    M.~vastus lateralis & mean & 27.6 $\pm$ 16.2 & 39.7 $\pm$ 15.0 & 40.8 $\pm$ 19.1 & 5{,}09 & 0{,}078 & 0{,}231 \\
+     & peak & 54.3 $\pm$ 32.0 & 78.6 $\pm$ 31.3 & 81.7 $\pm$ 35.1 & 2{,}36 & 0{,}307 & 0{,}107 \\
     \hline
   \end{tabular}
 \end{table}

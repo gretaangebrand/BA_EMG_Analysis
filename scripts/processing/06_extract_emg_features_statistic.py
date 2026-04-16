@@ -1,12 +1,12 @@
 """
 06_extract_emg_features_statistic.py
 ===========================
-Extrahiert EMG-Kennwerte (mean RMS, peak RMS) aus den verarbeiteten
+Extrahiert EMG-Kennwerte (mean EMG, peak EMG) aus den verarbeiteten
 EMG-Daten (_processed.csv) für die besten Trials (aus 05_select_best_trials).
 
 Pro Probandin × Phase × Übung × Muskel werden berechnet:
-  - mean_rms: Mittlere Amplitude über den gesamten Bewegungszyklus (% BL)
-  - peak_rms: Maximale Amplitude im Bewegungszyklus (% BL)
+  - mean_emg: Mittlere Amplitude über den gesamten Bewegungszyklus (% BL)
+  - peak_emg: Maximale Amplitude im Bewegungszyklus (% BL)
   - peak_pct: Zeitpunkt des Peaks (% des Bewegungszyklus)
 
 Für CMJ und DJ zusätzlich phasenspezifisch:
@@ -166,20 +166,20 @@ def extract_features_from_curve(pct: np.ndarray, signal: np.ndarray,
                                 pct_start: float = 0.0,
                                 pct_end: float = 100.0) -> dict:
     """
-    Extrahiert mean_rms und peak_rms aus einem Abschnitt der Kurve.
+    Extrahiert mean_emg und peak_emg aus einem Abschnitt der Kurve.
     """
     mask = (pct >= pct_start) & (pct <= pct_end)
     segment = signal[mask]
  
     if len(segment) == 0:
-        return {"mean_rms": np.nan, "peak_rms": np.nan, "peak_pct": np.nan}
+        return {"mean_emg": np.nan, "peak_emg": np.nan, "peak_pct": np.nan}
  
     peak_idx = np.argmax(segment)
     pct_segment = pct[mask]
  
     return {
-        "mean_rms": float(np.mean(segment)),
-        "peak_rms": float(np.max(segment)),
+        "mean_emg": float(np.mean(segment)),
+        "peak_emg": float(np.max(segment)),
         "peak_pct": float(pct_segment[peak_idx]),
     }
  
@@ -275,8 +275,8 @@ def main():
                 "Uebung":    label,
                 "Muskel":    muscle,
                 "Abschnitt": "Gesamt",
-                "mean_rms":  feat_total["mean_rms"],
-                "peak_rms":  feat_total["peak_rms"],
+                "mean_emg":  feat_total["mean_emg"],
+                "peak_emg":  feat_total["peak_emg"],
                 "peak_pct":  feat_total["peak_pct"],
             })
  
@@ -291,8 +291,8 @@ def main():
                     "Uebung":    label,
                     "Muskel":    muscle,
                     "Abschnitt": phase_name,
-                    "mean_rms":  feat_phase["mean_rms"],
-                    "peak_rms":  feat_phase["peak_rms"],
+                    "mean_emg":  feat_phase["mean_emg"],
+                    "peak_emg":  feat_phase["peak_emg"],
                     "peak_pct":  feat_phase["peak_pct"],
                 })
  
@@ -332,10 +332,10 @@ def main():
  
     # 7) Zusammenfassung: Gruppenmittelwerte
     print(f"\n{'='*70}")
-    print("GRUPPENMITTELWERTE (mean RMS, Gesamt-Bewegungszyklus)")
+    print("GRUPPENMITTELWERTE (mean EMG, Gesamt-Bewegungszyklus)")
     print(f"{'='*70}")
     df_gesamt = df_feat[df_feat["Abschnitt"] == "Gesamt"]
-    grp = df_gesamt.groupby(["Uebung", "Phase", "Muskel"])["mean_rms"].agg(
+    grp = df_gesamt.groupby(["Uebung", "Phase", "Muskel"])["mean_emg"].agg(
         ["mean", "std", "count"]
     ).reset_index()
     for _, r in grp.iterrows():
@@ -367,12 +367,12 @@ def _export_spss_wide(df: pd.DataFrame):
       - Die drei Zyklusphasen als separate Spalten
  
     Pro Abschnitt (Gesamt, Landung, Bodenkontakt, Landung2) und
-    pro Kennwert (mean_rms, peak_rms) wird eine eigene CSV erzeugt.
+    pro Kennwert (mean_emg, peak_emg) wird eine eigene CSV erzeugt.
  
     Dateinamen:
-      spss_Gesamt_mean_rms.csv
-      spss_Gesamt_peak_rms.csv
-      spss_Landung_mean_rms.csv   (nur CMJ)
+      spss_Gesamt_mean_emg.csv
+      spss_Gesamt_peak_emg.csv
+      spss_Landung_mean_emg.csv   (nur CMJ)
       ...
  
     Spaltenformat:
@@ -382,7 +382,7 @@ def _export_spss_wide(df: pd.DataFrame):
     spss_dir.mkdir(parents=True, exist_ok=True)
  
     abschnitte = df["Abschnitt"].unique()
-    kennwerte  = ["mean_rms", "peak_rms"]
+    kennwerte  = ["mean_emg", "peak_emg"]
  
     n_files = 0
  
@@ -432,7 +432,7 @@ def _export_spss_wide(df: pd.DataFrame):
  
 def _create_overview_plot(df: pd.DataFrame, out_path: Path):
     """
-    Balkendiagramm: mean RMS pro Übung × Muskel × Phase.
+    Balkendiagramm: mean EMG pro Übung × Muskel × Phase.
     Nur Abschnitt 'Gesamt'.
     """
     df_gesamt = df[df["Abschnitt"] == "Gesamt"].copy()
@@ -457,7 +457,7 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
             phase_data = sub[sub["Phase"] == phase]
             means, sds = [], []
             for m in muscles:
-                vals = phase_data[phase_data["Muskel"] == m]["mean_rms"]
+                vals = phase_data[phase_data["Muskel"] == m]["mean_emg"]
                 means.append(vals.mean() if len(vals) > 0 else 0)
                 sds.append(vals.std() if len(vals) > 1 else 0)
  
@@ -470,7 +470,7 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
             )
  
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
-        ax.set_ylabel("Mean RMS (% Baseline)", fontsize=10)
+        ax.set_ylabel("Mean EMG (% Baseline)", fontsize=10)
         ax.set_xticks(x + bar_width)
         ax.set_xticklabels(muscles, fontsize=8, rotation=15, ha="right")
         ax.legend(fontsize=9, framealpha=0.9)
@@ -479,7 +479,7 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
         ax.grid(axis="y", alpha=0.3)
  
     fig.suptitle(
-        "EMG-Aktivierung: Gruppenmittelwerte der besten Trials (mean RMS)",
+        "EMG-Aktivierung: Gruppenmittelwerte der besten Trials (mean EMG)",
         fontsize=14, fontweight="bold",
     )
     plt.tight_layout()
@@ -523,7 +523,7 @@ def _create_responder_plot(df: pd.DataFrame, out_path: Path):
                 subj_data = sub[sub["Subject"] == subj]
                 vals = []
                 for phase in phase_order:
-                    v = subj_data[subj_data["Phase"] == phase]["mean_rms"].values
+                    v = subj_data[subj_data["Phase"] == phase]["mean_emg"].values
                     vals.append(v[0] if len(v) > 0 else np.nan)
  
                 vals_arr = np.array(vals)
@@ -579,7 +579,7 @@ def _create_responder_plot(df: pd.DataFrame, out_path: Path):
         "Individuelle EMG-Verläufe über den Zyklus (rot = Responder, CV > 15 %)",
         fontsize=13, fontweight="bold",
     )
-    fig.text(0.005, 0.5, "Mean RMS (% Baseline)",
+    fig.text(0.005, 0.5, "Mean EMG (% Baseline)",
              va="center", rotation="vertical", fontsize=10)
     plt.tight_layout(rect=[0.02, 0, 1, 0.97])
     fig.savefig(out_path, dpi=150, bbox_inches="tight")

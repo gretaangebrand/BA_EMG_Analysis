@@ -2,22 +2,24 @@
 08_statistical_analysis.py
 ===========================
 Führt die komplette statistische Auswertung der EMG-Features durch.
-Ersetzt die manuelle SPSS-Analyse.
  
 Für jede Kombination aus Übung × Muskel × Abschnitt × Kennwert:
   1. Deskriptive Statistik (M ± SD pro Phase)
-  2. Shapiro-Wilk-Test auf Normalverteilung (pro Phase)
-  3a. Bei Normalverteilung: Repeated-measures ANOVA (pingouin)
-  3b. Bei Verletzung: Friedman-Test
- 
+  2. Friedman-Test (non-parametrisch, für alle Kombinationen einheitlich)
+  3. Kendalls W als Effektgröße
+  4. Post-hoc: Paarweiser Wilcoxon-Vorzeichen-Rangtest mit Bonferroni-Korrektur
+
+Begründung für einheitliche Friedman-Anwendung:
+  - EMG-Kennwerte sind bei kleinen Stichproben (n ≤ 11) selten sicher
+    normalverteilt.
+  - Einheitliches Vorgehen erleichtert die Ergebnisinterpretation.
+  - Friedman ist konservativer und damit robuster gegenüber Verletzungen
+    der Normalitätsannahme.
+
 Output:
   - statistische_ergebnisse.csv
-  - statistische_ergebnisse.xlsx (formatiert wie SPSS-Vorlage)
+  - statistische_ergebnisse.xlsx (formatiert)
   - latex_tabellen.tex (fertige LaTeX-Tabellen)
-  - Reiter in Pipeline_Reports.xlsx
- 
-Voraussetzung:
-  pip install pingouin
 """
 
 from pathlib import Path
@@ -40,19 +42,20 @@ OUTPUT_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_E
 # ============================================================
 ALPHA = 0.05
 PHASE_ORDER = ["PER", "OVU", "LUT"]
-KENNWERTE = ["mean_rms", "peak_rms"]
+KENNWERTE = ["mean_emg", "peak_emg"]
  
  
-def interpret_eta2(eta2):
-    if pd.isna(eta2):
+def interpret_kendalls_w(w):
+    """Interpretation von Kendalls W nach Landis & Koch (1977)."""
+    if pd.isna(w):
         return ""
-    if eta2 >= 0.14:
-        return "gross"
-    if eta2 >= 0.06:
-        return "mittel"
-    if eta2 >= 0.01:
-        return "klein"
-    return "kein"
+    if w >= 0.7:
+        return "stark"
+    if w >= 0.4:
+        return "moderat"
+    if w >= 0.1:
+        return "schwach"
+    return "vernachlaessigbar"
  
  
 def fmt_msd(m, sd):
@@ -83,6 +86,9 @@ def fmt_num(val, decimals=3):
 # ============================================================
  
 def analyse_combination(df_long: pd.DataFrame, kennwert: str) -> dict:
+    """
+    Führt Friedman-Test + Post-hoc (Wilcoxon, Bonferroni) durch.
+    """
     result = {}
  
     # ── Deskriptive Statistik ──
@@ -119,7 +125,7 @@ def analyse_combination(df_long: pd.DataFrame, kennwert: str) -> dict:
     df_complete = df_long[df_long["Subject"].isin(complete_subjects)].copy()
     result["n_komplett"] = len(complete_subjects)
  
-    # ── Prüfen ob Varianz vorhanden (ANOVA braucht Varianz) ──
+    # ── Prüfen ob Varianz vorhanden ──
     for phase in PHASE_ORDER:
         vals = df_complete[df_complete["Phase"] == phase][kennwert].values
         if np.std(vals, ddof=1) == 0:
@@ -127,207 +133,59 @@ def analyse_combination(df_long: pd.DataFrame, kennwert: str) -> dict:
             result["Anmerkungen"] = f"Keine Varianz in Phase {phase}"
             return result
  
-    # ── Shapiro-Wilk ──
-    normalverteilt = True
-    sw_details = []
+    # ── Friedman-Test ──
+    result["Test"] = "Friedman"
+ 
+    vals_per_phase = []
     for phase in PHASE_ORDER:
-        vals = df_complete[df_complete["Phase"] == phase][kennwert].values
-        if len(vals) >= 3:
-            stat_sw, p_sw = stats.shapiro(vals)
-            result[f"SW_stat_{phase}"] = stat_sw
-            result[f"SW_p_{phase}"] = p_sw
-            sw_details.append(f"{phase}: {fmt_p(p_sw)}")
-            if p_sw < ALPHA:
-                normalverteilt = False
-        else:
-            result[f"SW_stat_{phase}"] = np.nan
-            result[f"SW_p_{phase}"] = np.nan
-            sw_details.append(f"{phase}: n/a")
- 
-    result["Normalverteilung"] = "ja" if normalverteilt else "nein"
-    result["SW_detail"] = "\n".join(sw_details)
- 
-    # ── Statistische Tests ──
-    if normalverteilt:
-        result["Test"] = "ANOVA"
-        try:
-            # Sicherstellen dass Phase als kategorisch sortiert ist
-            df_complete["Phase"] = pd.Categorical(
-                df_complete["Phase"], categories=PHASE_ORDER, ordered=True
-            )
-            df_complete = df_complete.sort_values(
-                ["Subject", "Phase"]
-            ).reset_index(drop=True)
- 
-            aov = pg.rm_anova(
-                data=df_complete,
-                dv=kennwert,
-                within="Phase",
-                subject="Subject",
-                correction=True,
-                detailed=True,
-            )
- 
-            result["F"] = aov["F"].iloc[0]
-            result["df"] = f"{aov['DF'].iloc[0]:.0f}"
-            if len(aov) > 1:
-                result["df"] += f", {aov['DF'].iloc[1]:.0f}"
-            # pingouin >= 0.6: p_unc, ng2; ältere: p-unc, np2
-            p_col = "p_unc" if "p_unc" in aov.columns else "p-unc"
-            result["p_wert"] = aov[p_col].iloc[0]
- 
-            # Partielles Eta-Quadrat: η²p = SS_phase / (SS_phase + SS_error)
-            # ng2 ist generalized eta², wir brauchen partial
-            if "np2" in aov.columns:
-                result["eta2_p"] = aov["np2"].iloc[0]
-            elif "SS" in aov.columns and len(aov) > 1:
-                ss_phase = aov["SS"].iloc[0]
-                ss_error = aov["SS"].iloc[1]
-                result["eta2_p"] = (
-                    ss_phase / (ss_phase + ss_error)
-                    if (ss_phase + ss_error) > 0 else np.nan
-                )
-            else:
-                # Fallback auf ng2
-                eta_col = "ng2" if "ng2" in aov.columns else "np2"
-                result["eta2_p"] = aov[eta_col].iloc[0]
- 
-            result["eta2_interpretation"] = interpret_eta2(result["eta2_p"])
- 
-            # Sphärizität
-            try:
-                sph = pg.sphericity(
-                    data=df_complete,
-                    dv=kennwert,
-                    within="Phase",
-                    subject="Subject",
-                )
-                if isinstance(sph, tuple) and len(sph) >= 3:
-                    result["Mauchly_p"] = sph[2]
-                    sph_verletzt = sph[2] < ALPHA
-                else:
-                    result["Mauchly_p"] = np.nan
-                    sph_verletzt = False
-            except Exception:
-                result["Mauchly_p"] = np.nan
-                sph_verletzt = False
- 
-            result["Sphaerizitaet_verletzt"] = (
-                "ja" if sph_verletzt else "nein"
-            )
- 
-            if sph_verletzt:
-                result["GG_Korrektur"] = "ja"
-                # pingouin >= 0.6: p_GG_corr; ältere: p-GG-corr
-                gg_col = next(
-                    (c for c in aov.columns if "GG" in c.upper() and "p" in c.lower()),
-                    None,
-                )
-                if gg_col:
-                    result["p_wert"] = aov[gg_col].iloc[0]
-                else:
-                    # GG manuell berechnen: F bleibt gleich, nur df korrigiert
-                    eps = aov["eps"].iloc[0] if "eps" in aov.columns else 1.0
-                    from scipy import stats as sp_stats
-                    df1_corr = result["F"] and aov["DF"].iloc[0] * eps
-                    df2_corr = aov["DF"].iloc[1] * eps if len(aov) > 1 else 10
-                    result["p_wert"] = 1 - sp_stats.f.cdf(
-                        result["F"], df1_corr, df2_corr
-                    )
-            else:
-                result["GG_Korrektur"] = "nein"
- 
-            # Teststatistik-String
-            result["Teststatistik"] = fmt_num(result["F"])
- 
-        except Exception as e:
-            # Fallback auf Friedman wenn ANOVA fehlschlägt
-            print(f"    [INFO] ANOVA fehlgeschlagen ({e}), "
-                  f"verwende Friedman als Fallback")
-            result["Test"] = "Friedman"
-            result["Anmerkungen"] = f"ANOVA fehlgeschlagen: {e}. Friedman als Fallback."
-            normalverteilt = False  # Friedman-Block unten ausführen
- 
-    if not normalverteilt and result.get("Test") != "nicht durchführbar":
-        if result.get("Test") != "Friedman":
-            result["Test"] = "Friedman"
- 
-        vals_per_phase = []
-        for phase in PHASE_ORDER:
-            phase_vals = (
-                df_complete[df_complete["Phase"] == phase]
-                .sort_values("Subject")[kennwert]
-                .values
-            )
-            vals_per_phase.append(phase_vals)
- 
-        try:
-            stat_fr, p_fr = stats.friedmanchisquare(*vals_per_phase)
-            result["Chi2"] = stat_fr
-            result["Teststatistik"] = fmt_num(stat_fr)
-            result["df"] = str(len(PHASE_ORDER) - 1)
-            result["p_wert"] = p_fr
-            result["Signifikant"] = "ja" if p_fr < ALPHA else "nein"
- 
-            # Kendalls W
-            n = len(vals_per_phase[0])
-            k = len(PHASE_ORDER)
-            result["Kendalls_W"] = (
-                stat_fr / (n * (k - 1)) if n * (k - 1) > 0 else np.nan
-            )
- 
-            result["Mauchly_p"] = np.nan
-            result["Sphaerizitaet_verletzt"] = ""
-            result["GG_Korrektur"] = ""
-            result["eta2_p"] = np.nan
-            result["eta2_interpretation"] = ""
- 
-        except Exception as e:
-            result["Test"] = "Friedman fehlgeschlagen"
-            result["Anmerkungen"] = str(e)
-            return result
- 
-    # ── Signifikanz setzen (falls noch nicht gesetzt) ──
-    if "Signifikant" not in result:
-        p = result.get("p_wert", np.nan)
-        result["Signifikant"] = (
-            "ja" if (not pd.isna(p) and p < ALPHA) else "nein"
+        phase_vals = (
+            df_complete[df_complete["Phase"] == phase]
+            .sort_values("Subject")[kennwert]
+            .values
         )
+        vals_per_phase.append(phase_vals)
  
-    # ── Post-hoc ──
+    try:
+        stat_fr, p_fr = stats.friedmanchisquare(*vals_per_phase)
+        result["Chi2"] = stat_fr
+        result["Teststatistik"] = fmt_num(stat_fr)
+        result["df"] = str(len(PHASE_ORDER) - 1)
+        result["p_wert"] = p_fr
+        result["Signifikant"] = "ja" if p_fr < ALPHA else "nein"
+ 
+        # Kendalls W
+        n = len(vals_per_phase[0])
+        k = len(PHASE_ORDER)
+        result["Kendalls_W"] = (
+            stat_fr / (n * (k - 1)) if n * (k - 1) > 0 else np.nan
+        )
+        result["W_interpretation"] = interpret_kendalls_w(result["Kendalls_W"])
+ 
+    except Exception as e:
+        result["Test"] = "Friedman fehlgeschlagen"
+        result["Anmerkungen"] = str(e)
+        return result
+ 
+    # ── Post-hoc: Paarweiser Wilcoxon-Vorzeichen-Rangtest mit Bonferroni ──
     if result.get("Signifikant") == "ja":
-        if result["Test"] == "ANOVA":
+        pairs = [("PER", "OVU"), ("PER", "LUT"), ("OVU", "LUT")]
+        n_pairs = len(pairs)
+ 
+        for p1, p2 in pairs:
+            v1 = (
+                df_complete[df_complete["Phase"] == p1]
+                .sort_values("Subject")[kennwert].values
+            )
+            v2 = (
+                df_complete[df_complete["Phase"] == p2]
+                .sort_values("Subject")[kennwert].values
+            )
             try:
-                posthoc = pg.pairwise_tests(
-                    data=df_complete,
-                    dv=kennwert,
-                    within="Phase",
-                    subject="Subject",
-                    padjust="bonf",
-                )
-                for _, row in posthoc.iterrows():
-                    a, b = row["A"], row["B"]
-                    # pingouin >= 0.6: p_corr; ältere: p-corr
-                    pcorr_col = "p_corr" if "p_corr" in row.index else "p-corr"
-                    result[f"posthoc_{a}_{b}_p"] = row[pcorr_col]
+                _, p_w = stats.wilcoxon(v1, v2)
+                # Bonferroni-Korrektur: p * Anzahl Paare, gedeckelt bei 1
+                result[f"posthoc_{p1}_{p2}_p"] = min(p_w * n_pairs, 1.0)
             except Exception:
-                pass
-        else:
-            pairs = [("PER", "OVU"), ("PER", "LUT"), ("OVU", "LUT")]
-            for p1, p2 in pairs:
-                v1 = (
-                    df_complete[df_complete["Phase"] == p1]
-                    .sort_values("Subject")[kennwert].values
-                )
-                v2 = (
-                    df_complete[df_complete["Phase"] == p2]
-                    .sort_values("Subject")[kennwert].values
-                )
-                try:
-                    _, p_w = stats.wilcoxon(v1, v2)
-                    result[f"posthoc_{p1}_{p2}_p"] = min(p_w * 3, 1.0)
-                except Exception:
-                    result[f"posthoc_{p1}_{p2}_p"] = np.nan
+                result[f"posthoc_{p1}_{p2}_p"] = np.nan
  
     return result
  
@@ -338,7 +196,7 @@ def analyse_combination(df_long: pd.DataFrame, kennwert: str) -> dict:
  
 def main():
     print("=" * 70)
-    print("08_statistical_analysis.py  –  Statistische Auswertung")
+    print("08_statistical_analysis.py  –  Friedman-basierte Auswertung")
     print("=" * 70)
  
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -353,7 +211,7 @@ def main():
  
     # ── Alle Kombinationen durchrechnen ──
     all_results = []
-    n_anova, n_friedman, n_sig = 0, 0, 0
+    n_friedman, n_sig, n_skipped = 0, 0, 0
  
     combinations = (
         df.groupby(["Uebung", "Muskel", "Abschnitt"])
@@ -383,10 +241,10 @@ def main():
             all_results.append(result)
  
             test = result.get("Test", "")
-            if test == "ANOVA":
-                n_anova += 1
-            elif test == "Friedman":
+            if test == "Friedman":
                 n_friedman += 1
+            elif test in ("nicht durchführbar", "Friedman fehlgeschlagen"):
+                n_skipped += 1
             if result.get("Signifikant") == "ja":
                 n_sig += 1
  
@@ -405,11 +263,8 @@ def main():
     df_results.to_csv(csv_out, index=False)
     print(f"\n  CSV: {csv_out}")
  
-    # ── Formatierte Excel (wie SPSS-Vorlage) ──
+    # ── Formatierte Excel ──
     _save_formatted_excel(df_results, OUTPUT_DIR / "statistische_ergebnisse.xlsx")
- 
-    # ── Pipeline-Report ──
-    #_save_to_pipeline_report({"08_Statistik_Ergebnisse": df_results})
  
     # ── LaTeX-Tabellen ──
     _generate_latex_tables(df_results, OUTPUT_DIR / "latex_tabellen.tex")
@@ -418,9 +273,9 @@ def main():
     print(f"\n{'='*70}")
     print("ZUSAMMENFASSUNG")
     print(f"{'='*70}")
-    print(f"  Analysen:              {len(df_results)}")
-    print(f"  rm-ANOVA:              {n_anova}")
-    print(f"  Friedman:              {n_friedman}")
+    print(f"  Analysen gesamt:       {len(df_results)}")
+    print(f"  Friedman durchgeführt: {n_friedman}")
+    print(f"  Nicht durchführbar:    {n_skipped}")
     print(f"  Signifikant:           {n_sig}")
  
     if n_sig > 0:
@@ -431,16 +286,16 @@ def main():
     else:
         print(f"\n  Kein signifikanter Effekt gefunden.")
  
-    anova_rows = df_results[df_results["Test"] == "ANOVA"]
-    if not anova_rows.empty and "eta2_p" in anova_rows.columns:
-        eta2_vals = anova_rows["eta2_p"].dropna()
-        if not eta2_vals.empty:
-            print(f"\n  Effektgrössen (η²p):")
-            print(f"    Median: {eta2_vals.median():.3f}")
-            print(f"    Max:    {eta2_vals.max():.3f}")
-            print(f"    Gross:  {(eta2_vals >= 0.14).sum()}")
-            print(f"    Mittel: {((eta2_vals >= 0.06) & (eta2_vals < 0.14)).sum()}")
-            print(f"    Klein:  {((eta2_vals >= 0.01) & (eta2_vals < 0.06)).sum()}")
+    # Kendalls W Übersicht
+    if "Kendalls_W" in df_results.columns:
+        w_vals = df_results["Kendalls_W"].dropna()
+        if not w_vals.empty:
+            print(f"\n  Effektgrössen (Kendalls W):")
+            print(f"    Median:          {w_vals.median():.3f}")
+            print(f"    Max:             {w_vals.max():.3f}")
+            print(f"    Stark (≥0.7):    {(w_vals >= 0.7).sum()}")
+            print(f"    Moderat (≥0.4):  {((w_vals >= 0.4) & (w_vals < 0.7)).sum()}")
+            print(f"    Schwach (≥0.1):  {((w_vals >= 0.1) & (w_vals < 0.4)).sum()}")
  
     print(f"\n{'='*70}")
     print(f"FERTIG – Output: {OUTPUT_DIR}")
@@ -448,16 +303,13 @@ def main():
  
  
 # ============================================================
-# EXCEL-AUSGABE IM SPSS-VORLAGE-FORMAT
+# EXCEL-AUSGABE
 # ============================================================
  
 def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
     """
-    Speichert die Ergebnisse im gleichen Format wie die SPSS-Vorlage:
-    - Titel und Untertitel oben
-    - Abschnitts-Überschriften (Gesamt – mean_rms, etc.)
-    - Header-Zeile mit den 20 Spalten
-    - Datenzeilen mit formatierten Werten
+    Speichert die Ergebnisse im formatierten Excel-Layout.
+    Spalten: deskriptive Kennwerte, Friedman-Ergebnis, Kendalls W, Post-hoc.
     """
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -483,38 +335,38 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
     )
     zebra = PatternFill('solid', fgColor='F2F7FB')
  
-    # ── Spalten-Header ──
+    # ── Spalten-Header (ohne ANOVA-spezifische Spalten) ──
     headers = [
         "Übung", "Muskel", "Abschnitt", "Kennwert",
         "M ± SD\nPER", "M ± SD\nOVU", "M ± SD\nLUT",
-        "Normalvert.\n(Shapiro-Wilk)",
-        "Test\n(ANOVA/Friedman)",
-        "Teststatistik\n(F / χ²)",
+        "Test",
+        "χ²",
         "df",
         "p-Wert",
-        "η²p\n(nur ANOVA)",
-        "Sphärizität\n(Mauchly p)",
-        "GG-Korrektur\nangewendet?",
+        "Kendalls W",
+        "W-Interpret.",
         "Signifikant?\n(p < 0,05)",
         "Post-hoc\nPER↔OVU (p)",
         "Post-hoc\nPER↔LUT (p)",
         "Post-hoc\nOVU↔LUT (p)",
         "Anmerkungen",
     ]
-    col_widths = [20, 22, 16, 12, 16, 16, 16, 18, 16, 14, 8, 12, 14, 14, 14, 14, 14, 14, 14, 30]
+    col_widths = [20, 22, 16, 12, 16, 16, 16, 12, 10, 6, 12, 12, 14, 14, 14, 14, 14, 30]
  
     # ── Titel ──
-    ws.merge_cells('A1:T1')
+    last_col_letter = chr(ord('A') + len(headers) - 1)
+    ws.merge_cells(f'A1:{last_col_letter}1')
     ws['A1'].value = "Statistische Ergebnisse – EMG-Kennwerte über die drei Zyklusphasen"
     ws['A1'].font = Font(bold=True, name='Arial', size=14, color='2F5496')
  
-    ws.merge_cells('A2:T2')
-    ws['A2'].value = ("repeated-measures ANOVA bzw. Friedman-Test | "
-                      "Post-hoc: Bonferroni-korrigierte Paarvergleiche | α = 0,05")
+    ws.merge_cells(f'A2:{last_col_letter}2')
+    ws['A2'].value = ("Friedman-Test (non-parametrisch) | "
+                      "Post-hoc: paarweiser Wilcoxon-Vorzeichen-Rangtest, "
+                      "Bonferroni-korrigiert | α = 0,05")
     ws['A2'].font = Font(name='Arial', size=9, color='666666')
  
-    ws.merge_cells('A3:T3')
-    ws['A3'].value = "auf die 3 Nachkommastellen gerundet"
+    ws.merge_cells(f'A3:{last_col_letter}3')
+    ws['A3'].value = "Werte auf 3 Nachkommastellen gerundet"
     ws['A3'].font = Font(name='Arial', size=9, color='666666')
  
     # ── Spaltenbreiten ──
@@ -523,28 +375,26 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
         ws.column_dimensions[get_column_letter(c)].width = w
  
     # ── Abschnitte und Daten schreiben ──
-    # Gruppierung: Abschnitt × Kennwert
     abschnitt_kennwert_order = [
-        ("Gesamt", "mean_rms"),
-        ("Gesamt", "peak_rms"),
-        ("Landung", "mean_rms"),
-        ("Landung", "peak_rms"),
-        ("Bodenkontakt", "mean_rms"),
-        ("Bodenkontakt", "peak_rms"),
-        ("Landung2", "mean_rms"),
-        ("Landung2", "peak_rms"),
+        ("Gesamt", "mean_emg"),
+        ("Gesamt", "peak_emg"),
+        ("Landung", "mean_emg"),
+        ("Landung", "peak_emg"),
+        ("Bodenkontakt", "mean_emg"),
+        ("Bodenkontakt", "peak_emg"),
+        ("Landung2", "mean_emg"),
+        ("Landung2", "peak_emg"),
     ]
  
-    # Labels für Abschnitts-Überschriften
     abschnitt_labels = {
-        ("Gesamt", "mean_rms"): "Gesamt – mean_rms",
-        ("Gesamt", "peak_rms"): "Gesamt – peak_rms",
-        ("Landung", "mean_rms"): "Landung (CMJ) – mean_rms",
-        ("Landung", "peak_rms"): "Landung (CMJ) – peak_rms",
-        ("Bodenkontakt", "mean_rms"): "Bodenkontakt (DJ) – mean_rms",
-        ("Bodenkontakt", "peak_rms"): "Bodenkontakt (DJ) – peak_rms",
-        ("Landung2", "mean_rms"): "Landung2 (DJ) – mean_rms",
-        ("Landung2", "peak_rms"): "Landung2 (DJ) – peak_rms",
+        ("Gesamt", "mean_emg"): "Gesamt – mean_emg",
+        ("Gesamt", "peak_emg"): "Gesamt – peak_emg",
+        ("Landung", "mean_emg"): "Landung (CMJ) – mean_emg",
+        ("Landung", "peak_emg"): "Landung (CMJ) – peak_emg",
+        ("Bodenkontakt", "mean_emg"): "Bodenkontakt (DJ) – mean_emg",
+        ("Bodenkontakt", "peak_emg"): "Bodenkontakt (DJ) – peak_emg",
+        ("Landung2", "mean_emg"): "Landung2 (DJ) – mean_emg",
+        ("Landung2", "peak_emg"): "Landung2 (DJ) – peak_emg",
     }
  
     current_row = 4
@@ -592,18 +442,16 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
                 fmt_msd(r.get("M_PER"), r.get("SD_PER")),
                 fmt_msd(r.get("M_OVU"), r.get("SD_OVU")),
                 fmt_msd(r.get("M_LUT"), r.get("SD_LUT")),
-                r.get("SW_detail", ""),
                 r.get("Test", ""),
                 r.get("Teststatistik", ""),
                 r.get("df", ""),
                 fmt_p(r.get("p_wert")),
-                fmt_num(r.get("eta2_p")) if not pd.isna(r.get("eta2_p", np.nan)) else "",
-                fmt_p(r.get("Mauchly_p")) if not pd.isna(r.get("Mauchly_p", np.nan)) else "",
-                r.get("GG_Korrektur", ""),
+                fmt_num(r.get("Kendalls_W")) if not pd.isna(r.get("Kendalls_W", np.nan)) else "",
+                r.get("W_interpretation", ""),
                 r.get("Signifikant", ""),
-                fmt_p(r.get("posthoc_PER_OVU_p", r.get("posthoc_PER_vs_OVU_p"))),
-                fmt_p(r.get("posthoc_PER_LUT_p", r.get("posthoc_PER_vs_LUT_p"))),
-                fmt_p(r.get("posthoc_OVU_LUT_p", r.get("posthoc_OVU_vs_LUT_p"))),
+                fmt_p(r.get("posthoc_PER_OVU_p")),
+                fmt_p(r.get("posthoc_PER_LUT_p")),
+                fmt_p(r.get("posthoc_OVU_LUT_p")),
                 r.get("Anmerkungen", ""),
             ]
  
@@ -638,8 +486,13 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
 # ============================================================
  
 def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
+    """
+    Erzeugt LaTeX-Tabellen pro Übung × Abschnitt.
+    Spalten: Muskel | Kennwert | M±SD pro Phase | χ² | p | W
+    """
     lines = [
         "% Automatisch generiert von 08_statistical_analysis.py",
+        "% Friedman-Test | Post-hoc: Wilcoxon, Bonferroni",
         "",
     ]
  
@@ -648,22 +501,20 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
             uebung.replace(" ", "_").replace(".", "")
             + "_" + abschnitt
         )
-        caption = (
-            f"EMG-Kennwerte – {uebung} ({abschnitt})"
-        )
+        caption = f"EMG-Kennwerte – {uebung} ({abschnitt})"
  
         lines.append(r"\begin{table}[H]")
         lines.append(r"  \centering")
         lines.append(f"  \\caption{{{caption}}}")
         lines.append(f"  \\label{{tab:{label_safe}}}")
         lines.append(r"  \small")
-        lines.append(r"  \begin{tabular}{l l c c c l c c}")
+        lines.append(r"  \begin{tabular}{l l c c c c c c}")
         lines.append(r"    \hline")
         lines.append(
             r"    \textbf{Muskel} & \textbf{Kennwert} & "
             r"\textbf{PER} & \textbf{OVU} & \textbf{LUT} & "
-            r"\textbf{Test} & \textbf{p} & "
-            r"\textbf{$\eta^2_p$} \\"
+            r"\textbf{$\chi^2$} & \textbf{p} & "
+            r"\textbf{W} \\"
         )
         lines.append(r"    \hline")
  
@@ -690,9 +541,11 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                         return "--"
                     return f"{m:.1f} $\\pm$ {sd:.1f}"
  
-                test_str = r.get("Test", "")
-                if r.get("GG_Korrektur") == "ja":
-                    test_str += "$^\\text{GG}$"
+                chi2 = r.get("Chi2", np.nan)
+                chi2_str = (
+                    f"{chi2:.2f}".replace(".", "{,}")
+                    if not pd.isna(chi2) else "--"
+                )
  
                 p_val = r.get("p_wert", np.nan)
                 if pd.isna(p_val):
@@ -702,18 +555,18 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                 else:
                     p_str = f"{p_val:.3f}".replace(".", "{,}")
  
-                eta2 = r.get("eta2_p", np.nan)
-                eta2_str = (
-                    f"{eta2:.3f}".replace(".", "{,}")
-                    if not pd.isna(eta2) else "--"
+                w_val = r.get("Kendalls_W", np.nan)
+                w_str = (
+                    f"{w_val:.3f}".replace(".", "{,}")
+                    if not pd.isna(w_val) else "--"
                 )
  
-                kw = "mean" if kennwert == "mean_rms" else "peak"
+                kw = "mean" if kennwert == "mean_emg" else "peak"
  
                 lines.append(
                     f"    {muskel_str} & {kw} & "
                     f"{lfmt('PER')} & {lfmt('OVU')} & {lfmt('LUT')} & "
-                    f"{test_str} & {p_str} & {eta2_str} \\\\"
+                    f"{chi2_str} & {p_str} & {w_str} \\\\"
                 )
             lines.append(r"    \hline")
  
@@ -723,27 +576,6 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
  
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"  LaTeX: {out_path.name}")
- 
- 
-# ============================================================
-# PIPELINE-REPORT
-# ============================================================
- 
-"""def _save_to_pipeline_report(sheets: dict[str, pd.DataFrame]):
-    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if REPORT_PATH.exists():
-        from openpyxl import load_workbook
-        with pd.ExcelWriter(
-            REPORT_PATH, engine="openpyxl", mode="a",
-            if_sheet_exists="replace",
-        ) as writer:
-            for name, dframe in sheets.items():
-                dframe.to_excel(writer, sheet_name=name, index=False)
-    else:
-        with pd.ExcelWriter(REPORT_PATH, engine="openpyxl") as writer:
-            for name, dframe in sheets.items():
-                dframe.to_excel(writer, sheet_name=name, index=False)
-    print(f"  Pipeline-Report: {REPORT_PATH.name}")"""
  
  
 if __name__ == "__main__":
