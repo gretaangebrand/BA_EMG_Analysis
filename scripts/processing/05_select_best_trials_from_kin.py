@@ -360,6 +360,7 @@ def main():
     # ── Plot: Bestleistung pro Probandin – in welcher Phase? ──────────────
     _create_peak_phase_plot(df_best, FIGURES_DIR / "bestleistung_pro_probandin.svg")
 
+
      # ── Bestleistungsvergleich über Übungen + LaTeX-Tabelle ──────────
     table_df = _build_best_phase_table(df_best)
     _generate_latex_table(table_df, FIGURES_DIR / "bestleistung_phase_mzp.tex")
@@ -367,6 +368,9 @@ def main():
         df_best, table_df,
         FIGURES_DIR / "bestleistung_pro_probandin_erweitert.svg",
     )
+
+    # ── Plot: Erweitert MIT Gruppenmittelwert + Violin ─────────────────────
+    _create_enhanced_peak_phase_plot_with_mean(df_best, table_df, FIGURES_DIR / "bestleistung_pro_probandin_erweitert_mittelwert.svg")
 
     # Konsolenausgabe: Bestleistungsphase + MZP
     print(f"\n{'='*70}")
@@ -996,6 +1000,7 @@ def _generate_latex_table(table_df: pd.DataFrame, out_path: Path):
     print(f"  LaTeX-Tabelle   : {out_path.name}")
 
 
+
 def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
                                      table_df: pd.DataFrame,
                                      out_path: Path):
@@ -1173,7 +1178,229 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
     plt.tight_layout(rect=[0, 0, 0.95, 0.92])
     fig.savefig(out_path, dpi=150, bbox_inches="tight", pad_inches=0.4)
     plt.close(fig)
-    print(f"SVG (erweitert) : {out_path.name}") 
+    print(f"SVG (erweitert) : {out_path.name}")
+
+def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
+                                               table_df: pd.DataFrame,
+                                               out_path: Path):
+    """
+    Wie _create_enhanced_peak_phase_plot, aber zusätzlich mit:
+      - Violinplot im Hintergrund (Gruppenverteilung pro Phase)
+      - Gruppenmittelwert als roter Querstrich mit Zahlenwert
+    """
+    phase_order  = ["PER", "OVU", "LUT"]
+    phase_colors = PHASE_COLORS
+    phase_x      = {p: i for i, p in enumerate(phase_order)}
+
+    exercise_order = [e for e in BESTLEISTUNG_EXERCISE_ORDER
+                      if e in df_best["Übung"].values]
+    n_ex = len(exercise_order)
+
+    if n_ex <= 2:
+        n_rows, n_cols = 1, n_ex
+    elif n_ex <= 4:
+        n_rows, n_cols = 2, 2
+    else:
+        n_rows, n_cols = 3, 2
+
+    fig, axes = plt.subplots(
+        n_rows * 2, n_cols, figsize=(5.5 * n_cols, 6 * n_rows),
+        gridspec_kw={"height_ratios": [4, 1] * n_rows},
+    )
+
+    # Dominante Phase pro Probandin
+    subj_dominant = {}
+    for _, row in table_df.iterrows():
+        dominant = row["dominant_phase"]
+        subj_dominant[row["Subject"]] = dominant if dominant != "—" else None
+
+    for idx, ex_name in enumerate(exercise_order):
+        grid_row = (idx // n_cols) * 2
+        grid_col = idx % n_cols
+
+        ax       = axes[grid_row, grid_col]
+        ax_table = axes[grid_row + 1, grid_col]
+
+        sub = df_best[df_best["Übung"] == ex_name]
+        subjects = sorted(sub["Subject"].unique())
+
+        # ── Violinplots im Hintergrund (pro Phase) ──
+        violin_data   = []
+        violin_pos    = []
+        violin_colors = []
+        for phase in phase_order:
+            phase_vals = sub[sub["Phase"] == phase]["Wert"].values
+            if len(phase_vals) >= 2:
+                violin_data.append(phase_vals)
+                violin_pos.append(phase_x[phase])
+                violin_colors.append(phase_colors[phase])
+
+        if violin_data:
+            parts = ax.violinplot(
+                violin_data, positions=violin_pos,
+                widths=0.7, showmeans=False, showmedians=False, showextrema=False,
+            )
+            for pc, color in zip(parts['bodies'], violin_colors):
+                pc.set_facecolor(color)
+                pc.set_edgecolor(color)
+                pc.set_alpha(0.18)
+                pc.set_zorder(1)
+
+        # ── Gruppenmittelwert pro Phase als roter Querstrich ──
+        for phase in phase_order:
+            phase_vals = sub[sub["Phase"] == phase]["Wert"].values
+            if len(phase_vals) > 0:
+                mean_val = float(np.mean(phase_vals))
+                ax.hlines(
+                    mean_val,
+                    phase_x[phase] - 0.28, phase_x[phase] + 0.28,
+                    color="#C1272D", linewidth=2.8, zorder=6,
+                )
+                ax.text(
+                    phase_x[phase] + 0.32, mean_val,
+                    f"{mean_val:.3f}",
+                    fontsize=7.5, fontweight="bold",
+                    color="#C1272D", va="center", ha="left", zorder=7,
+                )
+
+        peak_phase_counts = {"PER": 0, "OVU": 0, "LUT": 0}
+        label_info = []
+
+        for subj in subjects:
+            subj_data = sub[sub["Subject"] == subj]
+
+            vals = {}
+            for phase in phase_order:
+                phase_row = subj_data[subj_data["Phase"] == phase]
+                if not phase_row.empty:
+                    vals[phase] = float(phase_row["Wert"].values[0])
+
+            if not vals:
+                continue
+
+            best_phase = max(vals, key=vals.get)
+            peak_phase_counts[best_phase] += 1
+
+            x_pts = [phase_x[p] for p in phase_order if p in vals]
+            y_pts = [vals[p] for p in phase_order if p in vals]
+
+            dominant = subj_dominant.get(subj, None)
+            has_consistency = (dominant is not None and dominant == best_phase)
+
+            ax.plot(x_pts, y_pts,
+                    color="#adb5bd", linewidth=1.0, alpha=0.6, zorder=2)
+
+            for phase, val in vals.items():
+                is_best = (phase == best_phase)
+                ax.scatter(
+                    phase_x[phase], val,
+                    color=phase_colors[phase],
+                    s=120 if is_best else 30,
+                    alpha=0.95 if is_best else 0.5,
+                    edgecolors="black" if is_best else "white",
+                    linewidth=(2.0 if (is_best and has_consistency) else
+                               0.5 if is_best else 0.5),
+                    zorder=4 if is_best else 3,
+                )
+
+            best_val = vals[best_phase]
+            lbl_color = phase_colors[best_phase] if has_consistency else "#333333"
+            lbl_weight = "bold" if has_consistency else "normal"
+            label_info.append((phase_x[best_phase], best_val, subj,
+                               lbl_color, lbl_weight))
+
+        # Labels platzieren mit vertikalem Offset bei Überlappung
+        label_info.sort(key=lambda t: t[1])
+        y_range = ax.get_ylim()
+        y_span = y_range[1] - y_range[0]
+        min_gap = y_span * 0.04
+
+        placed_labels = []
+        for lx, ly, subj, lcolor, lweight in label_info:
+            y_offset = 0
+            for px, py in placed_labels:
+                if abs(lx - px) < 0.5 and abs((ly + y_offset) - py) < min_gap:
+                    if ly + y_offset >= py:
+                        y_offset = py + min_gap - ly
+                    else:
+                        y_offset = py - min_gap - ly
+
+            y_final = ly + y_offset
+            placed_labels.append((lx, y_final))
+
+            ax.annotate(
+                subj, xy=(lx, ly), xytext=(lx + 0.08, y_final),
+                fontsize=6.5, color=lcolor, fontweight=lweight,
+                alpha=0.85, zorder=6, clip_on=False,
+                va="center", ha="left",
+                arrowprops=dict(arrowstyle="-", color="#cccccc",
+                                lw=0.4, alpha=0.4,
+                                shrinkA=0, shrinkB=3)
+                if abs(y_offset) > min_gap * 0.5 else None,
+            )
+
+        ax.set_xticks(range(len(phase_order)))
+        ax.set_xticklabels(phase_order, fontsize=11)
+        ax.set_xlim(-0.1, len(phase_order) - 1 + 0.1)
+        ax.set_title(ex_name, fontsize=12, fontweight="bold")
+        unit = _get_unit_label(ex_name)
+        ax.set_ylabel(unit, fontsize=10)
+        if _is_jump_exercise(ex_name):
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".2f": f"{v:{fmt}}"))
+        else:
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _, fmt=".0f": f"{v:{fmt}}"))
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.grid(axis="y", alpha=0.3)
+
+        # Legende für Gruppenmittelwert (nur im ersten Subplot)
+        if idx == 0:
+            from matplotlib.lines import Line2D
+            mean_handle = Line2D(
+                [0], [0], color="#C1272D", linewidth=2.8,
+                label="Gruppenmittelwert",
+            )
+            ax.legend(
+                handles=[mean_handle], loc="upper right",
+                fontsize=8, framealpha=0.9,
+            )
+
+        # Häufigkeitstabelle
+        ax_table.axis("off")
+        table_data = [[peak_phase_counts[p] for p in phase_order]]
+        tbl = ax_table.table(
+            cellText=table_data,
+            colLabels=phase_order,
+            rowLabels=["Bestleistung\nin Phase"],
+            cellLoc="center",
+            loc="center",
+        )
+        tbl.auto_set_font_size(False)
+        tbl.set_fontsize(10)
+        tbl.scale(1.0, 1.8)
+
+        for j, phase in enumerate(phase_order):
+            tbl[0, j].set_facecolor(phase_colors[phase])
+            tbl[0, j].set_text_props(color="white", fontweight="bold")
+            tbl[1, j].set_text_props(fontweight="bold", fontsize=12)
+
+    # Leere Subplots ausblenden
+    for idx in range(n_ex, n_rows * n_cols):
+        grid_row = (idx // n_cols) * 2
+        grid_col = idx % n_cols
+        axes[grid_row, grid_col].set_visible(False)
+        axes[grid_row + 1, grid_col].set_visible(False)
+
+    fig.suptitle(
+        "Individuelle Bestleistung pro Probandin – mit Gruppenmittelwert\n"
+        "(großer Punkt = Bestleistung; fett = Konsistenz in ≥3 Übungen | "
+        "Violine = Gruppenverteilung | roter Strich = Gruppenmittelwert)",
+        fontsize=12, fontweight="bold",
+    )
+    plt.tight_layout(rect=[0, 0, 0.95, 0.92])
+    fig.savefig(out_path, dpi=150, bbox_inches="tight", pad_inches=0.4)
+    plt.close(fig)
+    print(f"SVG (erweitert+Mittelw.): {out_path.name}")
  
 if __name__ == "__main__":
     main()

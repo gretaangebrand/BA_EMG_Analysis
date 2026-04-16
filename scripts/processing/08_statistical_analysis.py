@@ -62,7 +62,7 @@ def fmt_msd(m, sd):
     """Formatiert M ± SD mit 3 Nachkommastellen, Dezimalkomma."""
     if pd.isna(m) or pd.isna(sd):
         return "--"
-    return f"{m:.3f} ± {sd:.3f}".replace(".", ",")
+    return f"{m:.2f} ± {sd:.2f}".replace(".", ",")
  
  
 def fmt_p(p):
@@ -71,7 +71,7 @@ def fmt_p(p):
         return ""
     if p < 0.001:
         return "<0,001"
-    return f"{p:.3f}".replace(".", ",")
+    return f"{p:.2f}".replace(".", ",")
  
  
 def fmt_num(val, decimals=3):
@@ -291,8 +291,8 @@ def main():
         w_vals = df_results["Kendalls_W"].dropna()
         if not w_vals.empty:
             print(f"\n  Effektgrössen (Kendalls W):")
-            print(f"    Median:          {w_vals.median():.3f}")
-            print(f"    Max:             {w_vals.max():.3f}")
+            print(f"    Median:          {w_vals.median():.2f}")
+            print(f"    Max:             {w_vals.max():.2f}")
             print(f"    Stark (≥0.7):    {(w_vals >= 0.7).sum()}")
             print(f"    Moderat (≥0.4):  {((w_vals >= 0.4) & (w_vals < 0.7)).sum()}")
             print(f"    Schwach (≥0.1):  {((w_vals >= 0.1) & (w_vals < 0.4)).sum()}")
@@ -539,7 +539,9 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                     sd = r.get(f"SD_{phase}", np.nan)
                     if pd.isna(m):
                         return "--"
-                    return f"{m:.1f} $\\pm$ {sd:.1f}"
+                    m_str = f"{m:.1f}".replace(".", "{,}")
+                    sd_str = f"{sd:.1f}".replace(".", "{,}")
+                    return f"{m_str} $\\pm$ {sd_str}"
  
                 chi2 = r.get("Chi2", np.nan)
                 chi2_str = (
@@ -553,11 +555,11 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                 elif p_val < 0.001:
                     p_str = "$<$\\,0{,}001"
                 else:
-                    p_str = f"{p_val:.3f}".replace(".", "{,}")
+                    p_str = f"{p_val:.2f}".replace(".", "{,}")
  
                 w_val = r.get("Kendalls_W", np.nan)
                 w_str = (
-                    f"{w_val:.3f}".replace(".", "{,}")
+                    f"{w_val:.2f}".replace(".", "{,}")
                     if not pd.isna(w_val) else "--"
                 )
  
