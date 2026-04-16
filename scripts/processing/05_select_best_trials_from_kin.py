@@ -1437,7 +1437,7 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         "Violine = Gruppenverteilung)",
         fontsize=12, fontweight="bold",
     )
-    plt.tight_layout(rect=[0, 0, 0.95, 0.92])
+    plt.tight_layout(rect=[0, 0, 0.95, 0.95])
     fig.savefig(out_path, dpi=150, bbox_inches="tight", pad_inches=0.4)
     plt.close(fig)
     print(f"SVG (erweitert+Mittelw.): {out_path.name}")
