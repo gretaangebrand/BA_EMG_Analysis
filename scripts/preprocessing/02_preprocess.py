@@ -310,7 +310,7 @@ def build_kin_dataframe(
     data:       pd.DataFrame,
     header:     pd.DataFrame,
     col_map:    dict[str, list[int]],
-    fs_emg:     float,
+    fs_video:   float,
     t_start:    float,
 ) -> pd.DataFrame:
     """
@@ -318,8 +318,9 @@ def build_kin_dataframe(
       time_s | events | scalars | Kinematik-Spalten
 
     Nur Zeilen mit gueltigen Kinematik-Daten werden behalten.
-    time_s = t_start + row_index / fs_emg  (absolute Vicon-Zeit).
-    Hinweis: row_index bezieht sich auf die Analog-Zeilen der Quelldatei.
+
+    Die Kinematik-Samples sind aequidistant mit 1/fs_video Abstand: 
+    time_s = t_start + i / fs_video  (i = 0, 1, 2, ..., n_valid-1)
     """
     row1 = header.iloc[1].astype(str)
     row4 = header.iloc[4].astype(str) if len(header) >= 5 \
@@ -345,9 +346,10 @@ def build_kin_dataframe(
 
     valid_indices = np.where(valid_mask.values)[0]
 
-    # Zeitachse: gleiche Basis wie EMG (row_index / fs_emg)
+    # Zeitachse: Video-Rate, beginnend bei t_start
+
     time_s = pd.Series(
-        t_start + valid_indices / fs_emg,
+        t_start + np.arange(n_valid) / fs_video,
         name="time_s",
     ).reset_index(drop=True)
 
@@ -530,7 +532,7 @@ def preprocess_file(file_path: Path) -> tuple[int, list[dict]]:
         # ---- Kinematik-Datei ----
         if col_map["kin"]:
             kin_df = build_kin_dataframe(
-                data, header, col_map, fs_emg, t_start,
+                data, header, col_map, fs_video, t_start,
             )
             if not kin_df.empty:
                 out_kin = out_dir / f"{short_name}_kin.csv"
