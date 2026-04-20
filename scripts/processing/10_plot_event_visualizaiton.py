@@ -77,7 +77,7 @@ STICKFIGURE_DIR = Path(
 )
 
 # Zoom-Faktor fuer Strichmaennchen (je kleiner, desto kleiner die Figur)
-STICKFIGURE_ZOOM = 0.35
+STICKFIGURE_ZOOM = 0.25
 
 # Events pro Übung: (Spaltenname, Label, Farbe, Linienstil, Stickfigure)
 EVENTS_CONFIG = {
