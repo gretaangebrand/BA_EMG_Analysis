@@ -2,24 +2,26 @@
 plot_event_definitions.py
 -------------------------
 Erstellt Abbildungen, die die Event-Definitionen fuer CMJ, DJ und Squat-Uebungen
-visualisieren.
+visualisieren. Strichmaennchen werden oberhalb des Plots platziert:
+  - an Event-Zeitpunkten (z.B. Take-off, Landing)
+  - an relativen Positionen zwischen Events (z.B. tiefster Punkt
+    im Countermovement, Flugphase)
 
 Darstellung:
-  - CMJ: vGRF (summiert, in N) mit 4 Events
-  - DJ:  vGRF (summiert, in N) mit 4 Events
-  - SQ (bilateral):            vGRF (summiert, in N) + Kniewinkel rechts
-  - SQ (unilateral rechts):    vGRF (rechts, in N)   + Kniewinkel rechts
+  - CMJ: vGRF (summiert, in N) mit 4 Events, 6 Strichmaennchen
+  - DJ:  vGRF (summiert, in N) mit 4 Events, 7 Strichmaennchen
+  - SQ (bilateral):          vGRF (summiert, in N) + Kniewinkel rechts
+  - SQ (unilateral rechts):  vGRF (rechts, in N)   + Kniewinkel rechts
 
 Hinweise:
-  - GRF-Rohdaten liegen in BW (Body Weight) vor und werden mit
+  - GRF-Rohdaten liegen in BW normalisiert vor und werden mit
     MASS * 9.81 in Newton zurueckgerechnet.
   - Ausgewertet wird immer die rechte Seite (siehe Methodik).
   - Fuer SQ werden keine Event-Markierungen gesetzt; der gesamte Trial
-    wird analysiert. Stattdessen werden Strichmaennchen an drei
-    repraesentativen Zeitpunkten (Start, Tiefster Punkt, Ende) gezeigt.
+    wird analysiert.
 
 INPUT:  _kin.csv-Dateien aus 03_preprocessed_emg_data
-        PNG-Strichmaennchen aus STICKFIGURE_DIR (transparenter Hintergrund)
+        SVG-Strichmaennchen aus STICKFIGURE_DIR (transparenter Hintergrund)
 OUTPUT: SVG-Dateien fuer den Methodenteil
 """
 
@@ -70,14 +72,16 @@ OUTPUT_DIR = Path(
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Ordner mit den Strichmaennchen-PNGs (transparenter Hintergrund!)
+# Ordner mit den Strichmaennchen-SVGs (transparenter Hintergrund!)
 STICKFIGURE_DIR = Path(
     r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG"
     r"\figures\stickfigures"
 )
 
-# Zoom-Faktor fuer Strichmaennchen (je kleiner, desto kleiner die Figur)
-STICKFIGURE_ZOOM = 0.10
+# Zoom-Faktor fuer Strichmaennchen (je kleiner, desto kleiner die Figur).
+# Wert ist fuer die hochaufgeloesten PNGs (1200 px breit) kalibriert;
+# bei niedrig aufgeloesten Quellen entsprechend hoeheren Wert waehlen.
+STICKFIGURE_ZOOM = 0.015
 
 # Events (werden als vertikale Linien im Plot gezeichnet)
 #   Format: (Spaltenname, Label, Farbe, Linienstil)
@@ -98,7 +102,7 @@ EVENTS_CONFIG = {
  
 # Strichmaennchen-Konfiguration.
 # Ein Eintrag ist ein Dict mit Feldern:
-#   "filename":   Name der PNG-Datei in STICKFIGURE_DIR
+#   "filename":   Name der SVG-Datei in STICKFIGURE_DIR
 #   "at_event":   (optional) Name der Event-Spalte, z.B. "event_start_s".
 #                 Wenn gesetzt, wird das Strichmaennchen an dieses Event platziert.
 #   "between":    (optional) Tuple (event_a, event_b, factor) mit factor in [0, 1].
@@ -108,7 +112,7 @@ EVENTS_CONFIG = {
 #                 VOR dem ersten Event (z.B. "dj_auf_box" vor "event_landing1_s").
 STICKFIGURES_CMJ = [
     {"filename": "cmj_start.png",   "at_event": "event_start_s"},
-    {"filename": "cmj_tief.png",    "between": ("event_start_s",    "event_take_off_s", 0.75)},
+    {"filename": "cmj_tief.png",    "between": ("event_start_s",    "event_take_off_s", 0.5)},
     {"filename": "cmj_takeoff.png", "at_event": "event_take_off_s"},
     {"filename": "cmj_in_luft.png", "between": ("event_take_off_s", "event_landing_s",  0.5)},
     {"filename": "cmj_landing.png", "at_event": "event_landing_s"},
@@ -116,9 +120,9 @@ STICKFIGURES_CMJ = [
 ]
  
 STICKFIGURES_DJ = [
-    {"filename": "dj_auf_box.png",     "before": ("event_landing1_s", 0.15)},
+    {"filename": "dj_auf_box.png",     "before": ("event_landing1_s", 0.05)},
     {"filename": "dj_landing1.png",    "at_event": "event_landing1_s"},
-    {"filename": "dj_exzentrisch1.png","between": ("event_landing1_s", "event_take_off_s", 0.5)},
+    {"filename": "dj_exzentrisch.png", "between": ("event_landing1_s", "event_take_off_s", 0.5)},
     {"filename": "dj_takeoff.png",     "at_event": "event_take_off_s"},
     {"filename": "dj_flug.png",        "between": ("event_take_off_s", "event_landing2_s", 0.5)},
     {"filename": "dj_landing2.png",    "at_event": "event_landing2_s"},
@@ -156,13 +160,11 @@ def load_kin(subject, phase, exercise, side, trial):
     return pd.read_csv(path, low_memory=False)
  
  
-def get_vgrf_in_newton(df, bilateral=True):
-    """vGRF in Newton (BW * MASS * 9.81)."""
-    mass = pd.to_numeric(df["MASS"], errors="coerce").iloc[0]
-    if np.isnan(mass):
-        raise ValueError("MASS nicht in den Metadaten gefunden")
-    factor = mass * 9.81
- 
+def get_vgrf_in_bw(df, bilateral=True):
+    """
+    vGRF in BW (Body Weight) – Rohwerte direkt aus der _kin.csv.
+    Standwert liegt bei ~1.0 BW, Sprung-Peaks bei ~2-5 BW.
+    """
     right = df["Right GRF_Z"] if "Right GRF_Z" in df.columns else None
     left  = df["Left GRF_Z"]  if "Left GRF_Z"  in df.columns else None
  
@@ -172,11 +174,11 @@ def get_vgrf_in_newton(df, bilateral=True):
         mask_both_nan = left_num.isna() & right_num.isna()
         summed = left_num.fillna(0) + right_num.fillna(0)
         summed[mask_both_nan] = np.nan
-        return summed * factor
+        return summed
     elif right is not None:
-        return pd.to_numeric(right, errors="coerce") * factor
+        return pd.to_numeric(right, errors="coerce")
     elif left is not None:
-        return pd.to_numeric(left, errors="coerce") * factor
+        return pd.to_numeric(left, errors="coerce")
     else:
         raise ValueError("Keine GRF_Z-Spalte gefunden")
  
@@ -220,9 +222,10 @@ def clean_timeseries(time, values):
 # =============================================================================
  
 def _load_stickfigure(filename):
+    """Laedt ein Strichmaennchen (PNG)."""
     path = STICKFIGURE_DIR / filename
     if not path.exists():
-        print(f"    [WARNUNG] Stickfigure fehlt: {path.name}")
+        print(f"    [WARNUNG] Stichmaennchen fehlt: {path.name}")
         return None
     return mpimg.imread(path)
  
@@ -268,10 +271,12 @@ def _add_stickfigures(ax, positions_files):
         img = _load_stickfigure(filename)
         if img is None:
             continue
-        imagebox = OffsetImage(img, zoom=STICKFIGURE_ZOOM)
+        # resample=True + hermite = saubere Verkleinerung (kein Pixelraster)
+        imagebox = OffsetImage(img, zoom=STICKFIGURE_ZOOM,
+                               resample=True, interpolation="hermite")
         ab = AnnotationBbox(
             imagebox,
-            xy=(x_data, 1.18),
+            xy=(x_data, 1.05),
             xycoords=("data", "axes fraction"),
             frameon=False,
             box_alignment=(0.5, 0.0),
@@ -286,7 +291,7 @@ def _add_stickfigures(ax, positions_files):
 def plot_jump(df, exercise, out_path):
     """Plot fuer CMJ / DJ: vGRF mit Events + Strichmaennchen-Reihe oben."""
     time = df["time_s"]
-    vgrf = get_vgrf_in_newton(df, bilateral=True)
+    vgrf = get_vgrf_in_bw(df, bilateral=True)
     t, v = clean_timeseries(time, vgrf)
  
     event_times = get_event_times(df, exercise)
@@ -299,7 +304,9 @@ def plot_jump(df, exercise, out_path):
     fig, ax = plt.subplots(figsize=(9, 5.2))
     ax.plot(t_rel, v, color=COLOR_GRF, linewidth=1.2,
             label="vGRF (summiert)")
-    ax.set_ylabel("vGRF [N]")
+    ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
+               alpha=0.7, label="1 BW")
+    ax.set_ylabel("vGRF [BW]")
     ax.set_xlabel("Zeit [s]")
     ax.grid(alpha=0.3)
  
@@ -330,12 +337,12 @@ def plot_jump(df, exercise, out_path):
  
     _add_stickfigures(ax, positions_files)
  
-    # Platz oben fuer Strichmaennchen
-    fig.subplots_adjust(top=0.72)
+    # Platz oben fuer Strichmaennchen (weniger als vorher = naeher am Plot)
+    fig.subplots_adjust(top=0.80)
  
     ax.legend(loc="center right", fontsize=8)
-    fig.suptitle(f"Event-Definition: {exercise}", fontsize=11, y=0.98)
-    fig.savefig(out_path, format="svg", bbox_inches="tight")
+    fig.suptitle(f"vGRF und Events beim {exercise}", fontsize=11, y=1.02)
+    fig.savefig(out_path, format="svg", bbox_inches="tight", dpi=300)
     plt.close(fig)
     print(f"  [OK] {out_path.name}")
  
@@ -343,7 +350,7 @@ def plot_jump(df, exercise, out_path):
 def plot_squat(df, bilateral, out_path, title):
     """Plot fuer Squat: vGRF + Kniewinkel rechts + 3 Strichmaennchen oben."""
     time = df["time_s"]
-    vgrf = get_vgrf_in_newton(df, bilateral=bilateral)
+    vgrf = get_vgrf_in_bw(df, bilateral=bilateral)
     knee = get_knee_angle_right(df)
  
     t_v, v = clean_timeseries(time, vgrf)
@@ -358,7 +365,9 @@ def plot_squat(df, bilateral, out_path, title):
  
     vgrf_label = "vGRF (summiert)" if bilateral else "vGRF (rechts)"
     axes[0].plot(t_v, v, color=COLOR_GRF, linewidth=1.2, label=vgrf_label)
-    axes[0].set_ylabel("vGRF [N]")
+    axes[0].axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
+                    alpha=0.7, label="1 BW")
+    axes[0].set_ylabel("vGRF [BW]")
     axes[0].legend(loc="upper right", fontsize=8)
     axes[0].grid(alpha=0.3)
  
@@ -381,9 +390,9 @@ def plot_squat(df, bilateral, out_path, title):
     ]
     _add_stickfigures(axes[0], positions_files)
  
-    fig.subplots_adjust(top=0.78, hspace=0.15)
-    fig.suptitle(title, fontsize=11, y=0.98)
-    fig.savefig(out_path, format="svg", bbox_inches="tight")
+    fig.subplots_adjust(top=0.85, hspace=0.15)
+    fig.suptitle(title, fontsize=11, y=1.02)
+    fig.savefig(out_path, format="svg", bbox_inches="tight", dpi=300)
     plt.close(fig)
     print(f"  [OK] {out_path.name}")
  
@@ -412,10 +421,10 @@ def main():
             plot_jump(df, key, out_path)
         elif key == "SQ":
             plot_squat(df, bilateral=True, out_path=out_path,
-                       title="Event-Definition: Squat (bilateral)")
+                       title="vGRF, Kniewinkel und Events beim Squat")
         elif key == "SQ_R":
             plot_squat(df, bilateral=False, out_path=out_path,
-                       title="Event-Definition: Squat (unilateral rechts)")
+                       title="vGRF und Events beim Squat (unilateral rechts)")
  
     print("\nFertig.")
  
