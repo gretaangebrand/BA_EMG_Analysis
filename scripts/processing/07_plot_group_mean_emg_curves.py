@@ -19,6 +19,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from matplotlib.lines import Line2D
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
@@ -45,14 +47,77 @@ PHASE_REVERSE = {"PER": "01_PER", "OVU": "02_OVU", "LUT": "03_LUT"}
 
 SIDE = "R"
 
-
 N_POINTS = 101  # 0–100 %
 
 # ── Darstellungsoptionen ──────────────────────────────────────
-SHOW_SD = False   # auf True oder False setzen, um die SD-Bänder ein- oder eben auszublenden
+SHOW_SD = True   # auf True oder False setzen, um die SD-Bänder ein- oder eben auszublenden
+
+# ── Einheitliche Typografie fuer alle Plots in diesem Script ─
+# Zentral definiert, damit alle Abbildungen im Thesis-Dokument
+# konsistent aussehen.
+FONT = {
+    "suptitle":   {"fontsize": 12, "fontweight": "bold"},  # Figur-Titel
+    "subtitle":   {"fontsize": 10, "fontweight": "bold"},  # Subplot-Titel
+    "axis_label": {"fontsize":  9},                         # x-/y-Achsentitel
+    "tick_label": {"fontsize":  8},                         # fuer set_xlabel/set_ylabel mit kleinerer Schrift
+    "tick":       {"labelsize": 8},                         # fuer ax.tick_params()
+    "legend":     {"fontsize":  8},                         # Legende
+    "annotation": {"fontsize":  7},                         # Text-Annotationen im Plot
+}
+# Globale rcParams als Fallback fuer alle nicht explizit gesetzten Werte
+plt.rcParams.update({
+    "font.family":  "sans-serif",
+    "font.size":    9,
+    "axes.titlesize": 10,
+    "axes.labelsize": 9,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+})
 
 # ── Pfad zu den preprocessed Daten (für KIN-Events) ──────────
 PREPROCESSED_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\03_preprocessed_emg_data")
+
+# ── Strichmaennchen-Konfiguration fuer Overlay-Plots ─────────
+# Strichmaennchen werden oberhalb des obersten Muskel-Subplots
+# platziert und visualisieren den Bewegungsablauf.
+STICKFIGURE_DIR = Path(
+    r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG"
+    r"\figures\stickfigures"
+)
+
+# Zoom-Faktor (kalibriert fuer hochaufgeloeste PNGs, 1200 px breit).
+# Bei niedriger aufgeloesten Quell-PNGs entsprechend groesseren Wert waehlen.
+STICKFIGURE_ZOOM_OVERLAY = 0.015
+
+# Konfiguration der Strichmaennchen-Positionierung pro Uebungstyp.
+# "at_event":  Position = prozentualer Zeitpunkt eines Events im Bewegungszyklus
+# "between":   Position = Interpolation zwischen zwei Events (factor in [0, 1])
+# "at_pct":    Position = fester prozentualer Punkt (fuer Squat)
+STICKFIGURES_OVERLAY = {
+    "CMJ": [
+        {"filename": "cmj_start.png",   "at_event": "Start"},
+        {"filename": "cmj_tief.png",    "between": ("Start", "Take-off", 0.5)},
+        {"filename": "cmj_takeoff.png", "at_event": "Take-off"},
+        {"filename": "cmj_in_luft.png", "between": ("Take-off", "Landing", 0.5)},
+        {"filename": "cmj_landing.png", "at_event": "Landing"},
+        {"filename": "cmj_endjump.png", "at_event": "End"},
+    ],
+    "DJ": [
+        {"filename": "dj_auf_box.png",     "at_pct": -5.0},
+        {"filename": "dj_landing1.png",    "at_event": "Landing 1"},
+        {"filename": "dj_exzentrisch.png", "between": ("Landing 1", "Take-off", 0.5)},
+        {"filename": "dj_takeoff.png",     "at_event": "Take-off"},
+        {"filename": "dj_flug.png",        "between": ("Take-off", "Landing 2", 0.5)},
+        {"filename": "dj_landing2.png",    "at_event": "Landing 2"},
+        {"filename": "dj_endjump.png",     "at_event": "End"},
+    ],
+    "SQ": [
+        {"filename": "sq_start.png",  "at_pct": 0.0},
+        {"filename": "sq_bottom.png", "at_pct": 50.0},
+        {"filename": "sq_end.png",    "at_pct": 100.0},
+    ],
+}
 
 # ── Event-Konfiguration pro Übungstyp ─────────────────────────
 # Jedes Event: (event_start_col, event_time_col, label, farbe, linestyle)
@@ -246,7 +311,7 @@ def draw_event_lines(ax, event_lists, add_label=True):
         if add_label:
             ax.text(
                 mean_pct, ax.get_ylim()[1] if ax.get_ylim()[1] > 0 else 100,
-                f" {label}", fontsize=6, color=info["color"],
+                f" {label}", **FONT["annotation"], color=info["color"],
                 rotation=90, va="top", ha="left", alpha=0.8,
             )
             handles.append(Line2D([0], [0], color=info["color"],
@@ -307,15 +372,15 @@ def plot_all_muscles_by_phase(curves, events, out_dir):
             ax.set_title(
                 f"{PHASE_LABELS.get(PHASE_REVERSE.get(phase, ''), phase)} "
                 f"(n={len(next(iter(muscle_dict.values()), []))})",
-                fontsize=11, fontweight="bold",
+                **FONT["subtitle"],
             )
-            ax.set_xlabel("Bewegungszyklus [%]", fontsize=9)
+            ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
 
-        axes[0].set_ylabel("EMG-Amplitude (% Baseline)", fontsize=10)
+        axes[0].set_ylabel("EMG-Amplitude (% Baseline)", **FONT["axis_label"])
 
         # Gemeinsame Legende
         handles, labels = axes[0].get_legend_handles_labels()
@@ -330,12 +395,12 @@ def plot_all_muscles_by_phase(curves, events, out_dir):
             labels.append(eh.get_label())
 
         fig.legend(handles, labels, loc="lower center",
-                   ncol=len(handles), fontsize=9, framealpha=0.9,
+                   ncol=len(handles), **FONT["legend"], framealpha=0.9,
                    bbox_to_anchor=(0.5, -0.02))
 
         fig.suptitle(
             f"{exercise}  –  Gruppenmittel aller Muskeln (beste Trials)",
-            fontsize=13, fontweight="bold",
+            **FONT["suptitle"],
         )
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
@@ -462,6 +527,97 @@ def _compute_phase_peaks_in_range(curves_exercise, phase_order, muscle,
 
     return result
 
+def _get_exercise_type(exercise: str) -> str:
+    """Ermittelt den Uebungstyp (CMJ, DJ, SQ) aus dem Uebungs-Label."""
+    if "CMJ" in exercise:
+        return "CMJ"
+    if "DJ" in exercise:
+        return "DJ"
+    if "SQ" in exercise:
+        return "SQ"
+    return ""
+
+
+def _mean_event_positions_pct(events, exercise, phase_order):
+    """
+    Ermittelt die gemittelte prozentuale Position jedes Events
+    ueber alle Phasen und Probandinnen.
+
+    Returns: dict {label: pct_position}
+    """
+    from collections import defaultdict
+
+    grouped = defaultdict(list)
+    for phase in phase_order:
+        for trial_events in events.get(exercise, {}).get(phase, []):
+            for pct_pos, label, color, ls in trial_events:
+                grouped[label].append(pct_pos)
+
+    return {label: float(np.mean(pcts)) for label, pcts in grouped.items()}
+
+
+def _resolve_stickfigure_x_pct(sf_cfg, event_positions):
+    """
+    Berechnet die prozentuale x-Position eines Strichmaennchens im
+    Bewegungszyklus.
+
+    Rueckgabe: x-Position (0-100) oder None, wenn Event fehlt.
+    """
+    if "at_event" in sf_cfg:
+        return event_positions.get(sf_cfg["at_event"])
+
+    if "between" in sf_cfg:
+        ev_a, ev_b, factor = sf_cfg["between"]
+        t_a = event_positions.get(ev_a)
+        t_b = event_positions.get(ev_b)
+        if t_a is None or t_b is None:
+            return None
+        return t_a + (t_b - t_a) * factor
+
+    if "at_pct" in sf_cfg:
+        return sf_cfg["at_pct"]
+
+    return None
+
+
+def _add_overlay_stickfigures(ax, exercise, events, phase_order):
+    """
+    Platziert Strichmaennchen oberhalb des uebergebenen Subplots.
+    Aufrufer muss sicherstellen, dass genug Platz oberhalb der Ax
+    reserviert ist (z.B. via fig.subplots_adjust(top=...)).
+    """
+    ex_type = _get_exercise_type(exercise)
+    sf_cfgs = STICKFIGURES_OVERLAY.get(ex_type, [])
+    if not sf_cfgs:
+        return
+
+    event_positions = _mean_event_positions_pct(events, exercise, phase_order)
+
+    for sf in sf_cfgs:
+        x_pct = _resolve_stickfigure_x_pct(sf, event_positions)
+        if x_pct is None:
+            continue
+ 
+        img_path = STICKFIGURE_DIR / sf["filename"]
+        if not img_path.exists():
+            print(f"    [WARNUNG] Stichmaennchen fehlt: {img_path.name}")
+            continue
+ 
+        img = mpimg.imread(img_path)
+        imagebox = OffsetImage(
+            img, zoom=STICKFIGURE_ZOOM_OVERLAY,
+            resample=True, interpolation="hermite",
+        )
+        ab = AnnotationBbox(
+            imagebox,
+            xy=(x_pct, 1.02),
+            xycoords=("data", "axes fraction"),
+            frameon=False,
+            box_alignment=(0.5, 0.0),
+        )
+        ax.add_artist(ab)
+ 
+ 
 def plot_phases_overlay_by_muscle(curves, events, out_dir):
     """
     Pro Übung: 5 Zeilen (Muskeln).
@@ -520,7 +676,7 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
  
                 if SHOW_SD:
                     ax.fill_between(pct, mean - sd, mean + sd,
-                                    color=color, alpha=0.12)
+                                    color=color, alpha=0.10)
                 ax.plot(pct, mean, color=color, linewidth=2.0,
                         linestyle=ls,
                         label=f"{phase} (n={len(arrays)})")
@@ -535,15 +691,15 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
  
-            ax.set_ylabel(f"{muscle}\n(% BL)", fontsize=8)
+            ax.set_ylabel(f"{muscle}\n(% BL)", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
-            ax.legend(fontsize=8, loc="upper right", framealpha=0.8)
+            ax.legend(**FONT["legend"], loc="upper right", framealpha=0.8)
  
             if row_idx == n_mus - 1:
-                ax.set_xlabel("Bewegungszyklus [%]", fontsize=10)
+                ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
  
             # ── Balkendiagramme (Mean + Peak) ─────────────────────
             if has_bars:
@@ -581,31 +737,51 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
                         bar.set_hatch(PHASE_HATCHES.get(p, ""))
  
                     ax_bar.set_xticks(x_pos)
-                    ax_bar.set_xticklabels(phases_present, fontsize=7)
+                    ax_bar.set_xticklabels(phases_present, **FONT["annotation"])
                     ax_bar.spines["top"].set_visible(False)
                     ax_bar.spines["right"].set_visible(False)
                     ax_bar.grid(axis="y", alpha=0.2)
  
-                    # Y-Achse: gleicher Bereich wie Kurvenplot, MIT Zahlenwerten
-                    ax_bar.set_ylim(ax.get_ylim())
-                    ax_bar.tick_params(axis="y", labelsize=6)
+                    # Y-Achse der Balkendiagramme:
+                    # - Untergrenze = 0 (Balken stehen am Boden, auch wenn
+                    #   der Kurvenplot leicht negativ anfaengt).
+                    # - Obergrenze = mind. so hoch wie der Kurvenplot,
+                    #   aber groesser, falls Balken+SD darueber hinausgehen.
+                    _, curve_yhi = ax.get_ylim()
+                    bar_max = max(
+                        (m + s) for m, s in zip(means, sds)
+                        if not np.isnan(m) and not np.isnan(s)
+                    ) if means else curve_yhi
+
+                    # 8% Puffer oberhalb des hoechsten Balken-Endes
+                    needed_yhi = bar_max * 1.08
+                    final_yhi = max(curve_yhi, needed_yhi)
+                    ax_bar.set_ylim(0, final_yhi)
+                    ax_bar.tick_params(axis="y", labelsize=7)
  
                     # Titel nur in erster Zeile
                     if row_idx == 0:
                         ax_bar.set_title(
                             f"{title_text}\n{bar_label}",
-                            fontsize=9, fontweight="bold",
+                            **FONT["subtitle"],
                             color=bar_color,
                         )
  
+        # ── Strichmaennchen oberhalb des obersten Muskel-Subplots ──
+        _add_overlay_stickfigures(
+            axes_all[0, 0], exercise, events, phase_order,
+        )
+
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel (Gruppenmittel, beste Trials)",
-            fontsize=13, fontweight="bold",
+            **FONT["suptitle"],
         )
- 
-        plt.tight_layout(rect=[0, 0, 1, 0.97])
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        # Zusaetzlicher Platz oberhalb der ersten Zeile fuer die Strichmaennchen
+        fig.subplots_adjust(top=0.92)
         out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_phase_overlay.svg"
-        fig.savefig(out_path, dpi=150, bbox_inches="tight")
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"  -> {out_path.name}")
 
@@ -658,15 +834,15 @@ def plot_all_muscles_by_phase_with_trials(curves, events, out_dir):
             ax.set_title(
                 f"{PHASE_LABELS.get(PHASE_REVERSE.get(phase, ''), phase)} "
                 f"(n={len(next(iter(muscle_dict.values()), []))})",
-                fontsize=11, fontweight="bold",
+                **FONT["subtitle"],
             )
-            ax.set_xlabel("Bewegungszyklus [%]", fontsize=9)
+            ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
 
-        axes[0].set_ylabel("EMG-Amplitude (% Baseline)", fontsize=10)
+        axes[0].set_ylabel("EMG-Amplitude (% Baseline)", **FONT["axis_label"])
 
         # Legende
         handles, labels = axes[0].get_legend_handles_labels()
@@ -680,12 +856,12 @@ def plot_all_muscles_by_phase_with_trials(curves, events, out_dir):
             labels.append(eh.get_label())
 
         fig.legend(handles, labels, loc="lower center",
-                   ncol=min(len(handles), 9), fontsize=9, framealpha=0.9,
+                   ncol=min(len(handles), 9), **FONT["legend"], framealpha=0.9,
                    bbox_to_anchor=(0.5, -0.02))
 
         fig.suptitle(
             f"{exercise}  –  Einzeltrials aller Muskeln (beste Trials, alle Probandinnen)",
-            fontsize=13, fontweight="bold",
+            **FONT["suptitle"],
         )
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
@@ -740,18 +916,18 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
 
-            ax.set_ylabel(f"{muscle}\n(% BL)", fontsize=8)
+            ax.set_ylabel(f"{muscle}\n(% BL)", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
-            ax.legend(fontsize=8, loc="upper right", framealpha=0.8)
+            ax.legend(**FONT["legend"], loc="upper right", framealpha=0.8)
 
-        axes[-1].set_xlabel("Bewegungszyklus [%]", fontsize=10)
+        axes[-1].set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
 
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel, Einzeltrials (alle Probandinnen)",
-            fontsize=13, fontweight="bold",
+            **FONT["suptitle"],
         )
 
         plt.tight_layout(rect=[0, 0, 1, 0.97])
