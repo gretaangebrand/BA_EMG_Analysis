@@ -328,7 +328,7 @@ def main():
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
     _create_overview_plot(df_feat, FIGURES_DIR / "emg_features_statistic_overview.svg")
-    _create_responder_plot(df_feat, FIGURES_DIR / "emg_features_responder.svg")
+    #_create_responder_plot(df_feat, FIGURES_DIR / "emg_features_responder.svg")
  
     # 7) Zusammenfassung: Gruppenmittelwerte
     print(f"\n{'='*70}")
