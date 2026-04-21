@@ -43,6 +43,32 @@ OUTPUT_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_E
 ALPHA = 0.05
 PHASE_ORDER = ["PER", "OVU", "LUT"]
 KENNWERTE = ["mean_emg", "peak_emg"]
+
+# ── Abschnitt-Filter ──────────────────────────────────────────
+# Legt fest, welche Abschnitte pro Uebung in die finale Auswertung
+# eingehen. Methodischer Hintergrund:
+#
+#   - CMJ: Nur die Landungsphase wird analysiert (vom initialen
+#     Bodenkontakt bis zur maximalen Kniebeugung).
+#   - DJ:  Nur die zweite Landungsphase wird analysiert (reaktive
+#     Landung nach dem Absprung von der Box).
+#   - SQ:  Der gesamte Bewegungszyklus wird analysiert, da keine
+#     Event-Markierungen gesetzt sind.
+#
+# Der "Gesamt"-Abschnitt fuer CMJ und DJ bleibt in den Feature-
+# Daten erhalten (fuer Sanity-Checks), geht aber nicht in die
+# finale Statistik ein.
+#
+# Zum Deaktivieren des Filters (z.B. fuer Validierung): auf None
+# setzen.
+# --------------------------------------------------------------
+ABSCHNITT_FILTER = {
+    "CMJ bilateral":   ["Landung"],
+    "CMJ einbeinig R": ["Landung"],
+    "DJ bilateral":    ["Landung2"],
+    "SQ bilateral":    ["Gesamt"],
+    "SQ einbeinig R":  ["Gesamt"],
+}
  
  
 def interpret_kendalls_w(w):
@@ -208,7 +234,54 @@ def main():
     df = pd.read_csv(FEATURES_CSV)
     print(f"\nFeatures geladen: {len(df)} Zeilen")
     print(f"  Subjects:   {sorted(df['Subject'].unique())}")
- 
+
+    # ── Abschnitt-Filter anwenden ──
+    if ABSCHNITT_FILTER is not None:
+        n_vor = len(df)
+
+        masks = []
+        for uebung, allowed_abschnitte in ABSCHNITT_FILTER.items():
+            masks.append(
+                (df["Uebung"] == uebung)
+                & (df["Abschnitt"].isin(allowed_abschnitte))
+            )
+
+        # OR-Verknuepfung aller Einzelmasken
+        combined_mask = masks[0]
+        for m in masks[1:]:
+            combined_mask = combined_mask | m
+
+        df = df[combined_mask].reset_index(drop=True)
+        n_nach = len(df)
+
+        print(f"\nAbschnitt-Filter aktiv:")
+        for uebung, abs_list in ABSCHNITT_FILTER.items():
+            print(f"  {uebung:22s} -> {abs_list}")
+        print(f"  Zeilen vor Filter:  {n_vor}")
+        print(f"  Zeilen nach Filter: {n_nach}")
+
+        # Safety-Check: ist nach dem Filter noch etwas da?
+        if n_nach == 0:
+            print(f"\n[FEHLER] Nach Anwendung des Abschnitt-Filters keine "
+                  f"Daten mehr vorhanden.")
+            print(f"  Moegliche Ursachen:")
+            print(f"    - ABSCHNITT_FILTER enthaelt Uebungs- oder Abschnitts-"
+                  f"namen, die nicht in den Daten vorkommen")
+            print(f"    - Verfuegbare Uebungen in den Daten:")
+            for u in sorted(pd.read_csv(FEATURES_CSV)['Uebung'].unique()):
+                print(f"        '{u}'")
+            print(f"    - Verfuegbare Abschnitte in den Daten:")
+            for a in sorted(pd.read_csv(FEATURES_CSV)['Abschnitt'].unique()):
+                print(f"        '{a}'")
+            return
+
+        # Zusatz-Warnung bei einzelnen leeren Kombinationen
+        for uebung, allowed_abschnitte in ABSCHNITT_FILTER.items():
+            n_uebung = len(df[df["Uebung"] == uebung])
+            if n_uebung == 0:
+                print(f"  [WARNUNG] Keine Daten fuer Uebung '{uebung}' "
+                      f"mit Abschnitt(en) {allowed_abschnitte}")
+
     # ── Alle Kombinationen durchrechnen ──
     all_results = []
     n_friedman, n_sig, n_skipped = 0, 0, 0
@@ -380,21 +453,21 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
         ("Gesamt", "peak_emg"),
         ("Landung", "mean_emg"),
         ("Landung", "peak_emg"),
-        ("Bodenkontakt", "mean_emg"),
-        ("Bodenkontakt", "peak_emg"),
+        #("Bodenkontakt", "mean_emg"),
+        #("Bodenkontakt", "peak_emg"),
         ("Landung2", "mean_emg"),
         ("Landung2", "peak_emg"),
     ]
  
     abschnitt_labels = {
-        ("Gesamt", "mean_emg"): "Gesamt – mean_emg",
-        ("Gesamt", "peak_emg"): "Gesamt – peak_emg",
-        ("Landung", "mean_emg"): "Landung (CMJ) – mean_emg",
-        ("Landung", "peak_emg"): "Landung (CMJ) – peak_emg",
-        ("Bodenkontakt", "mean_emg"): "Bodenkontakt (DJ) – mean_emg",
-        ("Bodenkontakt", "peak_emg"): "Bodenkontakt (DJ) – peak_emg",
-        ("Landung2", "mean_emg"): "Landung2 (DJ) – mean_emg",
-        ("Landung2", "peak_emg"): "Landung2 (DJ) – peak_emg",
+        ("Landung",      "mean_emg"): "Landungsphase (CMJ) – Mean EMG",
+        ("Landung",      "peak_emg"): "Landungsphase (CMJ) – Peak EMG",
+        ("Landung2",     "mean_emg"): "Zweite Landungsphase (DJ) – Mean EMG",
+        ("Landung2",     "peak_emg"): "Zweite Landungsphase (DJ) – Peak EMG",
+        ("Gesamt",       "mean_emg"): "Gesamter Bewegungszyklus (Squat) – Mean EMG",
+        ("Gesamt",       "peak_emg"): "Gesamter Bewegungszyklus (Squat) – Peak EMG",
+        ("Bodenkontakt", "mean_emg"): "Bodenkontakt (DJ) – Mean EMG",
+        ("Bodenkontakt", "peak_emg"): "Bodenkontakt (DJ) – Peak EMG",
     }
  
     current_row = 4

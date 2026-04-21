@@ -18,9 +18,14 @@ Klassifikation:
   - Non-Responder : CV ≤ 15 %  (stabile Aktivierung über den Zyklus)
 
 Abschnitte pro Übungstyp:
-  - SQ  → "Gesamt"
-  - CMJ → "Landung"
-  - DJ  → "Landung2"
+  - SQ  → "Gesamt"  (keine Events definiert)
+  - CMJ → "Landung" (IC → maximale Kniebeugung)
+  - DJ  → "Landung2" (zweite Landung nach reaktivem Absprung)
+
+Die Abschnitt-Zuordnung ist konsistent mit Script 08 (statistische
+Auswertung). Der "Gesamt"-Abschnitt wird bei CMJ und DJ bewusst
+nicht verwendet, um den Fokus auf die biomechanisch relevante
+Landungsphase zu legen.
 
 Kennwerte:
   - mean_emg
@@ -493,6 +498,51 @@ def main():
             print(f"[FEHLER] Spalte '{kw}' nicht in Features-CSV vorhanden.")
             print(f"  Verfügbare Spalten: {list(df.columns)}")
             return
+
+    # ── Abschnitt-Filter prüfen ──
+    # Die CV-Analyse nutzt pro Übung genau einen Abschnitt (siehe
+    # ABSCHNITT_PRO_UEBUNG). Wir prüfen vorab, ob für diese Kombinationen
+    # überhaupt Daten vorhanden sind, damit bei falscher Konfiguration
+    # ein klarer Fehler statt eines leisen Leerlaufs entsteht.
+    print(f"\nAbschnitt-Konfiguration:")
+    for uebung, abschnitt in ABSCHNITT_PRO_UEBUNG.items():
+        print(f"  {uebung:22s} -> {abschnitt}")
+
+    masks = []
+    for uebung, abschnitt in ABSCHNITT_PRO_UEBUNG.items():
+        masks.append(
+            (df["Uebung"] == uebung) & (df["Abschnitt"] == abschnitt)
+        )
+    combined = masks[0]
+    for m in masks[1:]:
+        combined = combined | m
+    n_matched = combined.sum()
+
+    print(f"  Zeilen in CSV gesamt: {len(df)}")
+    print(f"  Zeilen passend zum Filter: {n_matched}")
+
+    if n_matched == 0:
+        print(f"\n[FEHLER] Keine Zeilen passen zur Filter-Konfiguration.")
+        print(f"  Moegliche Ursachen:")
+        print(f"    - Uebungs-Namen in ABSCHNITT_PRO_UEBUNG stimmen nicht")
+        print(f"      mit den Werten in der Features-CSV ueberein")
+        print(f"    - Abschnitt-Namen sind falsch geschrieben")
+        print(f"  Gefundene Uebungen in CSV: "
+              f"{sorted(df['Uebung'].unique())}")
+        print(f"  Gefundene Abschnitte in CSV: "
+              f"{sorted(df['Abschnitt'].unique())}")
+        return
+
+    # Warnung: Uebungen in CSV, die nicht in der Konfiguration stehen
+    uebungen_csv = set(df["Uebung"].unique())
+    uebungen_cfg = set(ABSCHNITT_PRO_UEBUNG.keys())
+    fehlend = uebungen_csv - uebungen_cfg
+    if fehlend:
+        print(f"\n[WARNUNG] Folgende Uebungen sind in der CSV vorhanden,")
+        print(f"          aber nicht in ABSCHNITT_PRO_UEBUNG und werden")
+        print(f"          deshalb von der CV-Analyse ausgeschlossen:")
+        for u in sorted(fehlend):
+            print(f"  - {u}")
 
     # ── CV pro Person × Muskel × Übung × Kennwert ──
     print("\nBerechne CVs...")
