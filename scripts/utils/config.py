@@ -21,8 +21,8 @@ Verwendung in allen Skripten:
 # ============================================================
 PHASE_COLORS = {
     "PER": "#D55E00",   # Vermillion (Rot)
-    "OVU": "#0173B2",   # Blau
-    "LUT": "#CC78BC",   # Pink/Lila
+    "OVU": "#0072B2",   # Blau
+    "LUT": "#CC79A7",   # Pink/Lila
 }
 
 PHASE_LINESTYLES = {
@@ -59,8 +59,8 @@ MUSCLE_NAMES = [
 
 # Farben: barrierefrei, keine Überschneidung mit PHASE_COLORS
 MUSCLE_COLORS = {
-    "Gluteus Medius":       "#029E73",   # Grün
-    "Vastus Lateralis":     "#DE8F05",   # Orange
+    "Gluteus Medius":       "#009E73",   # Grün
+    "Vastus Lateralis":     "#E69F00",   # Orange
     "Biceps Femoris":       "#CA9161",   # Braun
     "Semitendinosus":       "#ECE133",   # Gelb
     "Gastrocnemius Medialis": "#56B4E9",   # Hellblau

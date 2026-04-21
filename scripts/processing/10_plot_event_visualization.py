@@ -8,9 +8,9 @@ visualisieren. Strichmaennchen werden oberhalb des Plots platziert:
     im Countermovement, Flugphase)
 
 Darstellung:
-  - CMJ: vGRF (summiert, in N) mit 4 Events, 6 Strichmaennchen
-  - DJ:  vGRF (summiert, in N) mit 4 Events, 7 Strichmaennchen
-  - SQ (bilateral):          vGRF (summiert, in N) + Kniewinkel rechts
+  - CMJ: vGRF (Gesamt, in N) mit 4 Events, 6 Strichmaennchen
+  - DJ:  vGRF (Gesamt, in N) mit 4 Events, 7 Strichmaennchen
+  - SQ (bilateral):          vGRF (Gesamt, in N) + Kniewinkel rechts
   - SQ (unilateral rechts):  vGRF (rechts, in N)   + Kniewinkel rechts
 
 Hinweise:
@@ -87,15 +87,15 @@ STICKFIGURE_ZOOM = 0.015
 #   Format: (Spaltenname, Label, Farbe, Linienstil)
 EVENTS_CONFIG = {
     "CMJ": [
-        ("event_start_s",    "Start",     "#4CAF50", "-"),
-        ("event_take_off_s", "Take-off",  "#2196F3", "-"),
-        ("event_landing_s",  "Landing",   "#FF5722", "-"),
+        ("event_start_s",    "Start",     "#009E73", "-"),
+        ("event_take_off_s", "Take-off",  "#0072B2", "-"),
+        ("event_landing_s",  "Landing",   "#D55E00", "-"),
         ("event_end_jump_s", "End Jump",  "#888888", "--"),
     ],
     "DJ": [
-        ("event_landing1_s", "Landing 1", "#FF5722", "-"),
-        ("event_take_off_s", "Take-off",  "#2196F3", "-"),
-        ("event_landing2_s", "Landing 2", "#FF5722", "--"),
+        ("event_landing1_s", "Landing 1", "#D55E00", "-"),
+        ("event_take_off_s", "Take-off",  "#0072B2", "-"),
+        ("event_landing2_s", "Landing 2", "#D55E00", "--"),
         ("event_end_jump_s", "End Jump",  "#888888", ":"),
     ],
 }
@@ -303,7 +303,7 @@ def plot_jump(df, exercise, out_path):
  
     fig, ax = plt.subplots(figsize=(9, 5.2))
     ax.plot(t_rel, v, color=COLOR_GRF, linewidth=1.2,
-            label="vGRF (summiert)")
+            label="vGRF (Gesamt)")
     ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
                alpha=0.7, label="1 BW")
     ax.set_ylabel("vGRF [BW]")
@@ -363,7 +363,7 @@ def plot_squat(df, bilateral, out_path, title):
  
     fig, axes = plt.subplots(2, 1, figsize=(9, 6.4), sharex=True)
  
-    vgrf_label = "vGRF (summiert)" if bilateral else "vGRF (rechts)"
+    vgrf_label = "vGRF (Gesamt)" if bilateral else "vGRF (rechts)"
     axes[0].plot(t_v, v, color=COLOR_GRF, linewidth=1.2, label=vgrf_label)
     axes[0].axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
                     alpha=0.7, label="1 BW")
