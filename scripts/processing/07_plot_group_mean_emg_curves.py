@@ -59,14 +59,14 @@ PREPROCESSED_DIR = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Dat
 EVENT_CONFIG = {
     "CMJ": [
         ("event_start_s",    "Start",     "#888888", ":"),
-        ("event_take_off_s", "Take-off",  "#2196F3", "-"),
-        ("event_landing_s",  "Landing",   "#FF5722", "-"),
+        ("event_take_off_s", "Take-off",  "#0072B2", "-"),
+        ("event_landing_s",  "Landing",   "#D55E00", "-"),
         ("event_end_jump_s", "End",       "#888888", ":"),
     ],
     "DJ": [
-        ("event_landing1_s", "Landing 1", "#FF5722", "-"),
-        ("event_take_off_s", "Take-off",  "#2196F3", "-"),
-        ("event_landing2_s", "Landing 2", "#FF5722", "--"),
+        ("event_landing1_s", "Landing 1", "#D55E00", "-"),
+        ("event_take_off_s", "Take-off",  "#0072B2", "-"),
+        ("event_landing2_s", "Landing 2", "#D55E00", "--"),
         ("event_end_jump_s", "End",       "#888888", ":"),
     ],
 }
@@ -381,11 +381,11 @@ def _get_landing_pct_ranges(events, exercise, phase_order):
     if "CMJ" in exercise:
         if "Landing" in mean_events and "End" in mean_events:
             ranges.append((mean_events["Landing"], 100.0,
-                           "Landung", "#FF5722"))
+                           "Landung", "#D55E00"))
     elif "DJ" in exercise:
         if "Landing 2" in mean_events and "End" in mean_events:
             ranges.append((mean_events["Landing 2"], 100.0,
-                           "Landung 2", "#FF5722"))
+                           "Landung 2", "#D55E00"))
 
     return ranges
 
