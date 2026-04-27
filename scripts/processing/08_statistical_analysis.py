@@ -589,13 +589,12 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
         lines.append(f"  \\caption{{{caption}}}")
         lines.append(f"  \\label{{tab:{label_safe}}}")
         lines.append(r"  \small")
-        lines.append(r"  \begin{tabular}{l l c c c c c c c}")
+        lines.append(r"  \begin{tabular}{l l c c c c c c }")
         lines.append(r"    \hline")
         lines.append(
             r"    \textbf{Muskel} & \textbf{Kennwert} & "
             r"\textbf{PER (\% BL)} & \textbf{OVU (\% BL)} & \textbf{LUT (\% BL)} & "
             r"\textbf{$p_{Friedman}$} & \textbf{$p_{post-hoc}$} & "
-            r"\textbf{W} \\"
         )
         lines.append(r"    \hline")
  
@@ -651,7 +650,7 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                 lines.append(
                     f"    {muskel_str} & {kw} & "
                     f"{lfmt('PER')} & {lfmt('OVU')} & {lfmt('LUT')} & "
-                    f"{p_fr_str} & {p_ph_str} & {w_str} \\\\"
+                    f"{p_fr_str} & {p_ph_str}\\\\" #& {w_str} 
                 )
             lines.append(r"    \hline")
  
