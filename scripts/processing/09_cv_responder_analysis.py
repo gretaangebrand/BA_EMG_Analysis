@@ -239,8 +239,9 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
     n_rows = len(pivot)
     n_cols = len(pivot.columns)
 
-    fig_w = max(12, 0.55 * n_cols + 3)
-    fig_h = max(5, 0.45 * n_rows + 2.5)
+    # Größere Figur für bessere Lesbarkeit
+    fig_w = max(16, 0.7 * n_cols + 4)
+    fig_h = max(8, 0.55 * n_rows + 3)
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
@@ -256,7 +257,8 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
 
     im = ax.imshow(data, cmap=cmap, aspect="auto", vmin=0, vmax=vmax)
 
-    # Werte in Zellen schreiben
+    # Keine Zahlen in Zelle - nur Farbe
+    """
     for i in range(n_rows):
         for j in range(n_cols):
             val = data[i, j]
@@ -268,14 +270,15 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
             else:
                 ax.text(j, i, "–", ha="center", va="center",
                         fontsize=7, color="#bbbbbb")
+                        """
 
-    # Achsen
+    # Achsen mit größerer Schrift
     ax.set_xticks(range(n_cols))
-    ax.set_xticklabels(pivot.columns, rotation=45, ha="right", fontsize=7.5)
+    ax.set_xticklabels(pivot.columns, rotation=45, ha="right", fontsize=12)
     ax.set_yticks(range(n_rows))
-    ax.set_yticklabels(subjects, fontsize=9)
-    ax.set_xlabel("Übung | Muskel", fontsize=9, labelpad=6)
-    ax.set_ylabel("Probandin", fontsize=9)
+    ax.set_yticklabels(subjects, fontsize=12)
+    ax.set_xlabel("Übung | Muskel", fontsize=13, labelpad=8)
+    ax.set_ylabel("Probandin", fontsize=13)
 
     # Gitternetz zwischen Übungen (nach jedem 5. Muskel)
     for x in range(5, n_cols, 5):
@@ -283,16 +286,17 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
 
     # Grenzlinie bei CV = 15 (in Colorbar markieren)
     cbar = plt.colorbar(im, ax=ax, shrink=0.7, pad=0.02)
-    cbar.set_label("CV [%]", fontsize=9)
+    cbar.set_label("CV [%]", fontsize=11)
+    cbar.ax.tick_params(labelsize=9)
     cbar.ax.axhline(CV_THRESHOLD, color="black", linewidth=1.2,
                     linestyle="--")
     cbar.ax.text(1.5, CV_THRESHOLD, f"  Schwelle {CV_THRESHOLD:.0f}%",
-                 va="center", fontsize=7.5)
+                 va="center", fontsize=9)
 
     ax.set_title(
         f"CV-Responder-Analyse – {kennwert}   "
-        f"(fett = Responder CV > {CV_THRESHOLD:.0f} %)",
-        fontsize=11, fontweight="bold", pad=10,
+        f"(Responder: CV > {CV_THRESHOLD:.0f} %)",
+        fontsize=14, fontweight="bold", pad=12,
     )
 
     plt.tight_layout()
