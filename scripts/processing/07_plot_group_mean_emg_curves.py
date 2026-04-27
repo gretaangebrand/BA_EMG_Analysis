@@ -248,7 +248,6 @@ def get_sig_symbol(p):
     else:
         return ""
 
-
 def collect_curves(df_best):
     """
     Sammelt die zeitnormalisierten EMG-Kurven der besten Trials.
@@ -431,7 +430,7 @@ def plot_all_muscles_by_phase(curves, events, out_dir):
 
         fig.suptitle(
             f"{exercise}  –  Gruppenmittel aller Muskeln (beste Trials)",
-            **FONT["suptitle"],
+            **FONT["suptitle"], y=1.01
         )
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
@@ -641,7 +640,7 @@ def _add_overlay_stickfigures(ax, exercise, events, phase_order):
         )
         ab = AnnotationBbox(
             imagebox,
-            xy=(x_pct, 1.02),
+            xy=(x_pct, 1.05),
             xycoords=("data", "axes fraction"),
             frameon=False,
             box_alignment=(0.5, 0.0),
@@ -673,13 +672,13 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
             n_cols = 3  # Kurve + Mean + Peak
             width_ratios = [4, 1, 1]
             fig, axes_all = plt.subplots(
-                n_mus, n_cols, figsize=(14 + 7, 3.5 * n_mus),
+                n_mus, n_cols, figsize=(14 + 7, 3 * n_mus),
                 gridspec_kw={"width_ratios": width_ratios},
             )
         else:
             n_cols = 1
             fig, axes_col = plt.subplots(
-                n_mus, 1, figsize=(14, 3.5 * n_mus), sharex=True,
+                n_mus, 1, figsize=(14, 3 * n_mus), sharex=True,
             )
             axes_all = axes_col.reshape(-1, 1)
  
@@ -707,19 +706,19 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
  
                 if SHOW_SD:
                     ax.fill_between(pct, mean - sd, mean + sd,
-                                    color=color, alpha=0.12)
+                                    color=color, alpha=0.10)
                 ax.plot(pct, mean, color=color, linewidth=2.0,
                         linestyle=ls,
                         label=f"{phase} (n={len(arrays)})")
  
             ax.axhline(y=100, color="black", linewidth=0.6,
                        linestyle="--", alpha=0.4)
-            
+ 
             # ── Strichmaennchen oberhalb des obersten Muskel-Subplots ──
             _add_overlay_stickfigures(
                 axes_all[0, 0], exercise, events, phase_order,
             )
- 
+
             # Event-Linien
             all_evt_lists = []
             for phase in phase_order:
@@ -727,15 +726,26 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
  
-            ax.set_ylabel(f"{muscle}\n(% BL)", fontsize=12)
+            ax.set_ylabel(f"{muscle}\n(% BL)", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
-            ax.legend(fontsize=12, loc="upper right", framealpha=0.8)
+            ax.legend(**FONT["legend"], loc="upper right", framealpha=0.9)
+
+            # SQ ohne Balken: Y-Achse anpassen
+            if not has_bars and "SQ" in exercise:
+                if "bilateral" in exercise.lower():
+                    # Bilateral ist sehr niedrig -> auf 60% ranzoomen
+                    ax.set_ylim(0, 60)
+                else:
+                    # Einbeinig (höhere Ausschläge) -> Nicht kappen!
+                    # Wir zwingen die Achse nur dazu, bei 0 zu starten.
+                    # Die Obergrenze passt Matplotlib automatisch an die Daten an.
+                    ax.set_ylim(bottom=0)
  
             if row_idx == n_mus - 1:
-                ax.set_xlabel("Bewegungszyklus [%]", fontsize=14)
+                ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
  
             # ── Balkendiagramme (Mean + Peak) ─────────────────────
             if has_bars:
@@ -750,6 +760,38 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
                     phase_data, phase_order, muscle, pct_s, pct_e,
                 )
  
+                # ── Gemeinsame Y-Achse berechnen (über Kurve + beide Balken) ──
+                # Kurvenplot: aktuelles ylim nach auto-scaling
+                curve_ylo, curve_yhi = ax.get_ylim()
+                
+                # Maximale Balkenhöhe (Mean + Peak + SD)
+                all_bar_maxima = []
+                for stats in [mean_stats, peak_stats]:
+                    for phase in phase_order:
+                        m, s, n = stats[phase]
+                        if not np.isnan(m) and not np.isnan(s):
+                            all_bar_maxima.append(m + s)
+                
+                if all_bar_maxima:
+                    bar_max = max(all_bar_maxima)
+                    # 8% Puffer oberhalb höchstem Balken
+                    needed_yhi = bar_max * 1.08
+                else:
+                    needed_yhi = curve_yhi
+                
+                # Y-Obergrenze = max(Kurve, Balken)
+                unified_yhi = max(curve_yhi, needed_yhi)
+                
+                # SQ: Y-Achse auf 60% begrenzen (bessere Auflösung)
+                if "SQ" in exercise:
+                    unified_yhi = min(unified_yhi, 60)
+                
+                # Untergrenze = 0 (Balken stehen am Boden)
+                unified_ylo = 0
+                
+                # Y-Achse auf Kurvenplot UND beide Balkendiagramme anwenden
+                ax.set_ylim(unified_ylo, unified_yhi)
+
                 for bar_col_idx, (stats, title_text) in enumerate([
                     (mean_stats, "Mean"),
                     (peak_stats, "Peak"),
@@ -773,33 +815,20 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
                         bar.set_hatch(PHASE_HATCHES.get(p, ""))
  
                     ax_bar.set_xticks(x_pos)
-                    ax_bar.set_xticklabels(phases_present, fontsize=12)
+                    ax_bar.set_xticklabels(phases_present, **FONT["annotation"])
                     ax_bar.spines["top"].set_visible(False)
                     ax_bar.spines["right"].set_visible(False)
                     ax_bar.grid(axis="y", alpha=0.2)
  
-                    # Y-Achse der Balkendiagramme:
-                    # - Untergrenze = 0 (Balken stehen am Boden, auch wenn
-                    #   der Kurvenplot leicht negativ anfaengt).
-                    # - Obergrenze = mind. so hoch wie der Kurvenplot,
-                    #   aber groesser, falls Balken+SD darueber hinausgehen.
-                    _, curve_yhi = ax.get_ylim()
-                    bar_max = max(
-                        (m + s) for m, s in zip(means, sds)
-                        if not np.isnan(m) and not np.isnan(s)
-                    ) if means else curve_yhi
-
-                    # 8% Puffer oberhalb des hoechsten Balken-Endes
-                    needed_yhi = bar_max * 1.08
-                    final_yhi = max(curve_yhi, needed_yhi)
-                    ax_bar.set_ylim(0, final_yhi)
-                    ax_bar.tick_params(axis="y", labelsize=7)
+                    # Einheitliche Y-Achse für alle 3 Subplots
+                    ax_bar.set_ylim(unified_ylo, unified_yhi)
+                    ax_bar.tick_params(axis="y", labelsize=9)
  
                     # Titel nur in erster Zeile
                     if row_idx == 0:
                         ax_bar.set_title(
                             f"{title_text}\n{bar_label}",
-                            fontsize=14, fontweight="bold",
+                            **FONT["subtitle"],
                             color=bar_color,
                         )
 
@@ -859,10 +888,16 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
                             ax_bar.text((x1 + x2) / 2, y_bracket + 0.01 * y_range,
                                        symbol, ha="center", va="bottom",
                                        fontsize=12, fontweight="bold", zorder=11)
+ 
 
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel (Gruppenmittel, beste Trials)",
-            **FONT["suptitle"],
+            **FONT["suptitle"], y=1.01
+        )
+
+        # ── Strichmaennchen oberhalb des obersten Muskel-Subplots ──
+        _add_overlay_stickfigures(
+            axes_all[0, 0], exercise, events, phase_order,
         )
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
@@ -949,7 +984,7 @@ def plot_all_muscles_by_phase_with_trials(curves, events, out_dir):
 
         fig.suptitle(
             f"{exercise}  –  Einzeltrials aller Muskeln (beste Trials, alle Probandinnen)",
-            **FONT["suptitle"],
+            **FONT["suptitle"], y=1.01
         )
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
@@ -1011,16 +1046,22 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
             ax.grid(axis="y", alpha=0.2)
             ax.legend(**FONT["legend"], loc="upper right", framealpha=0.8)
 
+
         axes[-1].set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
 
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel, Einzeltrials (alle Probandinnen)",
-            **FONT["suptitle"],
+            **FONT["suptitle"], y=1.01
         )
 
-        plt.tight_layout(rect=[0, 0, 1, 0.97])
-        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_phase_overlay_with_trials.svg"
-        fig.savefig(out_path, dpi=150, bbox_inches="tight")
+        plt.tight_layout(rect=[0, 0, 1, 0.88])
+        
+        # top=0.78 gibt oben 22% des Platzes für die Männchen und den Titel frei.
+        # So schneidet bbox_inches="tight" nichts mehr ab.
+        #fig.subplots_adjust(top=0.78, left=0.08, right=0.98)
+
+        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_phase_muscle_trials.svg"
+        fig.savefig(out_path, format="svg", dpi=300, bbox_inches="tight")
         plt.close(fig)
         print(f"  -> {out_path.name}")
 
