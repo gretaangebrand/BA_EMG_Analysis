@@ -339,9 +339,10 @@ def draw_event_lines(ax, event_lists, add_label=True):
             linestyle=info["ls"], alpha=0.7, zorder=1,
         )
         if add_label:
+            offset_x = 0.25  # <--- Wert anpassen, je nachdem wie viel Abstand gewünscht ist
             ax.text(
-                mean_pct, ax.get_ylim()[1] if ax.get_ylim()[1] > 0 else 100,
-                f" {label}", **FONT["annotation"], color=info["color"],
+                mean_pct + offset_x, ax.get_ylim()[1] if ax.get_ylim()[1] > 0 else 100,
+                f"{label}", **FONT["annotation"], color=info["color"],
                 rotation=90, va="top", ha="left", alpha=0.8,
             )
             handles.append(Line2D([0], [0], color=info["color"],
