@@ -35,6 +35,7 @@ from scripts.utils.config import (
 # ============================================================
 PROCESSED_DIR   = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\04_processed_emg_data")
 BEST_TRIALS_CSV = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\data\05_best_trials_group_and_individual\beste_trials.csv")
+STATS_CSV       = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\statistics\statistische_ergebnisse.csv")
 OUTPUT_DIR      = Path(r"C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG\outputs\figures\plots_group_mean_emg")
 
 
@@ -56,23 +57,23 @@ SHOW_SD = True   # auf True oder False setzen, um die SD-Bänder ein- oder eben 
 # Zentral definiert, damit alle Abbildungen im Thesis-Dokument
 # konsistent aussehen.
 FONT = {
-    "suptitle":   {"fontsize": 12, "fontweight": "bold"},  # Figur-Titel
-    "subtitle":   {"fontsize": 10, "fontweight": "bold"},  # Subplot-Titel
-    "axis_label": {"fontsize":  9},                         # x-/y-Achsentitel
-    "tick_label": {"fontsize":  8},                         # fuer set_xlabel/set_ylabel mit kleinerer Schrift
-    "tick":       {"labelsize": 8},                         # fuer ax.tick_params()
-    "legend":     {"fontsize":  8},                         # Legende
-    "annotation": {"fontsize":  7},                         # Text-Annotationen im Plot
+    "suptitle":   {"fontsize": 14, "fontweight": "bold"},  # Figur-Titel
+    "subtitle":   {"fontsize": 12, "fontweight": "bold"},  # Subplot-Titel
+    "axis_label": {"fontsize": 12},                         # x-/y-Achsentitel
+    "tick_label": {"fontsize": 10},                         # fuer set_xlabel/set_ylabel mit kleinerer Schrift
+    "tick":       {"labelsize": 10},                         # fuer ax.tick_params()
+    "legend":     {"fontsize": 10},                         # Legende
+    "annotation": {"fontsize": 10},                         # Text-Annotationen im Plot
 }
 # Globale rcParams als Fallback fuer alle nicht explizit gesetzten Werte
 plt.rcParams.update({
     "font.family":  "sans-serif",
-    "font.size":    9,
-    "axes.titlesize": 10,
-    "axes.labelsize": 9,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "legend.fontsize": 8,
+    "font.size":    12,
+    "axes.titlesize": 12,
+    "axes.labelsize": 12,
+    "xtick.labelsize": 10,
+    "ytick.labelsize": 10,
+    "legend.fontsize": 10,
 })
 
 # ── Pfad zu den preprocessed Daten (für KIN-Events) ──────────
@@ -216,6 +217,36 @@ def get_event_pct(kin_path, exercise_label):
         result.append((pct_pos, label, color, ls))
 
     return result
+
+def load_stats(stats_path):
+    """Laedt statistische Ergebnisse und gibt Dict zurueck."""
+    if not stats_path.exists():
+        return {}
+    df = pd.read_csv(stats_path)
+    stats = {}
+    for _, row in df.iterrows():
+        key = (row["Uebung"], row["Muskel"], row["Kennwert"])
+        stats[key] = {
+            "signifikant": row["Signifikant"] == "ja",
+            "posthoc_PER_OVU_p": row.get("posthoc_PER_OVU_p", np.nan),
+            "posthoc_PER_LUT_p": row.get("posthoc_PER_LUT_p", np.nan),
+            "posthoc_OVU_LUT_p": row.get("posthoc_OVU_LUT_p", np.nan),
+        }
+    return stats
+
+
+def get_sig_symbol(p):
+    """Gibt Signifikanz-Symbol zurueck: ***, **, *, ns"""
+    if pd.isna(p):
+        return ""
+    if p < 0.001:
+        return "***"
+    elif p < 0.01:
+        return "**"
+    elif p < 0.05:
+        return "*"
+    else:
+        return ""
 
 
 def collect_curves(df_best):
@@ -618,7 +649,7 @@ def _add_overlay_stickfigures(ax, exercise, events, phase_order):
         ax.add_artist(ab)
  
  
-def plot_phases_overlay_by_muscle(curves, events, out_dir):
+def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
     """
     Pro Übung: 5 Zeilen (Muskeln).
     Alle 3 Phasen überlagert in jedem Subplot.
@@ -642,13 +673,13 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
             n_cols = 3  # Kurve + Mean + Peak
             width_ratios = [4, 1, 1]
             fig, axes_all = plt.subplots(
-                n_mus, n_cols, figsize=(14 + 7, 3 * n_mus),
+                n_mus, n_cols, figsize=(14 + 7, 3.5 * n_mus),
                 gridspec_kw={"width_ratios": width_ratios},
             )
         else:
             n_cols = 1
             fig, axes_col = plt.subplots(
-                n_mus, 1, figsize=(14, 3 * n_mus), sharex=True,
+                n_mus, 1, figsize=(14, 3.5 * n_mus), sharex=True,
             )
             axes_all = axes_col.reshape(-1, 1)
  
@@ -676,13 +707,18 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
  
                 if SHOW_SD:
                     ax.fill_between(pct, mean - sd, mean + sd,
-                                    color=color, alpha=0.10)
+                                    color=color, alpha=0.12)
                 ax.plot(pct, mean, color=color, linewidth=2.0,
                         linestyle=ls,
                         label=f"{phase} (n={len(arrays)})")
  
             ax.axhline(y=100, color="black", linewidth=0.6,
                        linestyle="--", alpha=0.4)
+            
+            # ── Strichmaennchen oberhalb des obersten Muskel-Subplots ──
+            _add_overlay_stickfigures(
+                axes_all[0, 0], exercise, events, phase_order,
+            )
  
             # Event-Linien
             all_evt_lists = []
@@ -691,15 +727,15 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
  
-            ax.set_ylabel(f"{muscle}\n(% BL)", **FONT["tick_label"])
+            ax.set_ylabel(f"{muscle}\n(% BL)", fontsize=12)
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
-            ax.legend(**FONT["legend"], loc="upper right", framealpha=0.8)
+            ax.legend(fontsize=12, loc="upper right", framealpha=0.8)
  
             if row_idx == n_mus - 1:
-                ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
+                ax.set_xlabel("Bewegungszyklus [%]", fontsize=14)
  
             # ── Balkendiagramme (Mean + Peak) ─────────────────────
             if has_bars:
@@ -737,7 +773,7 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
                         bar.set_hatch(PHASE_HATCHES.get(p, ""))
  
                     ax_bar.set_xticks(x_pos)
-                    ax_bar.set_xticklabels(phases_present, **FONT["annotation"])
+                    ax_bar.set_xticklabels(phases_present, fontsize=12)
                     ax_bar.spines["top"].set_visible(False)
                     ax_bar.spines["right"].set_visible(False)
                     ax_bar.grid(axis="y", alpha=0.2)
@@ -763,14 +799,66 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir):
                     if row_idx == 0:
                         ax_bar.set_title(
                             f"{title_text}\n{bar_label}",
-                            **FONT["subtitle"],
+                            fontsize=14, fontweight="bold",
                             color=bar_color,
                         )
- 
-        # ── Strichmaennchen oberhalb des obersten Muskel-Subplots ──
-        _add_overlay_stickfigures(
-            axes_all[0, 0], exercise, events, phase_order,
-        )
+
+                    # ── Signifikanz-Brackets ──────────────────────────────
+                    kennwert = "mean_emg" if title_text == "Mean" else "peak_emg"
+                    stat_key = (exercise, muscle, kennwert)
+                    if stat_key in stats_dict and stats_dict[stat_key]["signifikant"]:
+                        sig_info = stats_dict[stat_key]
+                        y_max = ax_bar.get_ylim()[1]
+                        y_range = y_max - ax_bar.get_ylim()[0]
+                        
+                        # Höhe für Brackets relativ zum Plot
+                        bracket_height = y_max + 0.05 * y_range
+                        bracket_offset = 0.08 * y_range
+                        
+                        # Post-hoc-Vergleiche prüfen
+                        comparisons = []
+                        if "PER" in phases_present and "OVU" in phases_present:
+                            p = sig_info["posthoc_PER_OVU_p"]
+                            sym = get_sig_symbol(p)
+                            if sym:
+                                i_per = phases_present.index("PER")
+                                i_ovu = phases_present.index("OVU")
+                                comparisons.append((i_per, i_ovu, sym))
+                        
+                        if "PER" in phases_present and "LUT" in phases_present:
+                            p = sig_info["posthoc_PER_LUT_p"]
+                            sym = get_sig_symbol(p)
+                            if sym:
+                                i_per = phases_present.index("PER")
+                                i_lut = phases_present.index("LUT")
+                                comparisons.append((i_per, i_lut, sym))
+                        
+                        if "OVU" in phases_present and "LUT" in phases_present:
+                            p = sig_info["posthoc_OVU_LUT_p"]
+                            sym = get_sig_symbol(p)
+                            if sym:
+                                i_ovu = phases_present.index("OVU")
+                                i_lut = phases_present.index("LUT")
+                                comparisons.append((i_ovu, i_lut, sym))
+                        
+                        # Brackets zeichnen (gestaffelt bei mehreren)
+                        for level, (i1, i2, symbol) in enumerate(comparisons):
+                            y_bracket = bracket_height + level * bracket_offset
+                            x1, x2 = x_pos[i1], x_pos[i2]
+                            
+                            # Horizontale Linie
+                            ax_bar.plot([x1, x2], [y_bracket, y_bracket],
+                                       color="black", linewidth=1.0, zorder=10)
+                            # Vertikale Endstriche
+                            tick_len = 0.02 * y_range
+                            ax_bar.plot([x1, x1], [y_bracket - tick_len, y_bracket],
+                                       color="black", linewidth=1.0, zorder=10)
+                            ax_bar.plot([x2, x2], [y_bracket - tick_len, y_bracket],
+                                       color="black", linewidth=1.0, zorder=10)
+                            # Signifikanz-Symbol
+                            ax_bar.text((x1 + x2) / 2, y_bracket + 0.01 * y_range,
+                                       symbol, ha="center", va="bottom",
+                                       fontsize=12, fontweight="bold", zorder=11)
 
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel (Gruppenmittel, beste Trials)",
@@ -955,6 +1043,13 @@ def main():
     df_best = pd.read_csv(BEST_TRIALS_CSV)
     print(f"\nBeste Trials geladen: {len(df_best)} Eintraege")
 
+    # Statistik laden
+    stats_dict = load_stats(STATS_CSV)
+    if stats_dict:
+        print(f"Statistische Ergebnisse geladen: {len(stats_dict)} Eintraege")
+    else:
+        print("[WARNUNG] Keine statistischen Ergebnisse gefunden – keine Signifikanz-Brackets")
+
     print("\nSammle EMG-Kurven der besten Trials ...")
     curves, events = collect_curves(df_best)
 
@@ -972,7 +1067,7 @@ def main():
     print(f"\nSHOW_SD = {SHOW_SD}")
     print("\nErstelle Plots ...")
     plot_all_muscles_by_phase(curves, events, OUTPUT_DIR)
-    plot_phases_overlay_by_muscle(curves, events, OUTPUT_DIR)
+    plot_phases_overlay_by_muscle(curves, events, OUTPUT_DIR, stats_dict)
 
     print("\nErstelle Plots mit Einzeltrials ...")
     plot_all_muscles_by_phase_with_trials(curves, events, OUTPUT_DIR)
