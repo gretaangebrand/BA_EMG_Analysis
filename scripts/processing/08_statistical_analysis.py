@@ -193,6 +193,7 @@ def analyse_combination(df_long: pd.DataFrame, kennwert: str) -> dict:
         return result
  
     # ── Post-hoc: Paarweiser Wilcoxon-Vorzeichen-Rangtest mit Bonferroni ──
+    posthoc_p_values = []
     if result.get("Signifikant") == "ja":
         pairs = [("PER", "OVU"), ("PER", "LUT"), ("OVU", "LUT")]
         n_pairs = len(pairs)
@@ -209,9 +210,19 @@ def analyse_combination(df_long: pd.DataFrame, kennwert: str) -> dict:
             try:
                 _, p_w = stats.wilcoxon(v1, v2)
                 # Bonferroni-Korrektur: p * Anzahl Paare, gedeckelt bei 1
-                result[f"posthoc_{p1}_{p2}_p"] = min(p_w * n_pairs, 1.0)
+                p_corrected = min(p_w * n_pairs, 1.0)
+                result[f"posthoc_{p1}_{p2}_p"] = p_corrected
+                posthoc_p_values.append(p_corrected)
             except Exception:
                 result[f"posthoc_{p1}_{p2}_p"] = np.nan
+        
+        # Kleinster Post-hoc p-Wert
+        if posthoc_p_values:
+            result["p_posthoc_min"] = min(posthoc_p_values)
+        else:
+            result["p_posthoc_min"] = np.nan
+    else:
+        result["p_posthoc_min"] = np.nan
  
     return result
  
@@ -411,20 +422,18 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
     # ── Spalten-Header (ohne ANOVA-spezifische Spalten) ──
     headers = [
         "Übung", "Muskel", "Abschnitt", "Kennwert",
-        "M ± SD\nPER", "M ± SD\nOVU", "M ± SD\nLUT",
+        "M ± SD\nPER (% BL)", "M ± SD\nOVU (% BL)", "M ± SD\nLUT (% BL)",
         "Test",
-        "χ²",
-        "df",
-        "p-Wert",
+        "p-Friedman",
+        "p-post-hoc\n(min)",
         "Kendalls W",
-        "W-Interpret.",
         "Signifikant?\n(p < 0,05)",
         "Post-hoc\nPER↔OVU (p)",
         "Post-hoc\nPER↔LUT (p)",
         "Post-hoc\nOVU↔LUT (p)",
         "Anmerkungen",
     ]
-    col_widths = [20, 22, 16, 12, 16, 16, 16, 12, 10, 6, 12, 12, 14, 14, 14, 14, 14, 30]
+    col_widths = [20, 22, 16, 12, 18, 18, 18, 12, 12, 12, 12, 14, 14, 14, 14, 30]
  
     # ── Titel ──
     last_col_letter = chr(ord('A') + len(headers) - 1)
@@ -516,9 +525,8 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
                 fmt_msd(r.get("M_OVU"), r.get("SD_OVU")),
                 fmt_msd(r.get("M_LUT"), r.get("SD_LUT")),
                 r.get("Test", ""),
-                r.get("Teststatistik", ""),
-                r.get("df", ""),
-                fmt_p(r.get("p_wert")),
+                fmt_p(r.get("p_wert")),  # p-Friedman
+                fmt_p(r.get("p_posthoc_min")),  # kleinster Post-hoc p-Wert
                 fmt_num(r.get("Kendalls_W")) if not pd.isna(r.get("Kendalls_W", np.nan)) else "",
                 r.get("W_interpretation", ""),
                 r.get("Signifikant", ""),
@@ -581,12 +589,12 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
         lines.append(f"  \\caption{{{caption}}}")
         lines.append(f"  \\label{{tab:{label_safe}}}")
         lines.append(r"  \small")
-        lines.append(r"  \begin{tabular}{l l c c c c c c}")
+        lines.append(r"  \begin{tabular}{l l c c c c c c c}")
         lines.append(r"    \hline")
         lines.append(
             r"    \textbf{Muskel} & \textbf{Kennwert} & "
-            r"\textbf{PER} & \textbf{OVU} & \textbf{LUT} & "
-            r"\textbf{$\chi^2$} & \textbf{p} & "
+            r"\textbf{PER (\% BL)} & \textbf{OVU (\% BL)} & \textbf{LUT (\% BL)} & "
+            r"\textbf{$p_{Friedman}$} & \textbf{$p_{post-hoc}$} & "
             r"\textbf{W} \\"
         )
         lines.append(r"    \hline")
@@ -616,19 +624,21 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                     sd_str = f"{sd:.1f}".replace(".", "{,}")
                     return f"{m_str} $\\pm$ {sd_str}"
  
-                chi2 = r.get("Chi2", np.nan)
-                chi2_str = (
-                    f"{chi2:.2f}".replace(".", "{,}")
-                    if not pd.isna(chi2) else "--"
-                )
- 
-                p_val = r.get("p_wert", np.nan)
-                if pd.isna(p_val):
-                    p_str = "--"
-                elif p_val < 0.001:
-                    p_str = "$<$\\,0{,}001"
+                p_fr = r.get("p_wert", np.nan)
+                if pd.isna(p_fr):
+                    p_fr_str = "--"
+                elif p_fr < 0.001:
+                    p_fr_str = "$<$\\,0{,}001"
                 else:
-                    p_str = f"{p_val:.2f}".replace(".", "{,}")
+                    p_fr_str = f"{p_fr:.3f}".replace(".", "{,}")
+                
+                p_ph = r.get("p_posthoc_min", np.nan)
+                if pd.isna(p_ph):
+                    p_ph_str = "--"
+                elif p_ph < 0.001:
+                    p_ph_str = "$<$\\,0{,}001"
+                else:
+                    p_ph_str = f"{p_ph:.3f}".replace(".", "{,}")
  
                 w_val = r.get("Kendalls_W", np.nan)
                 w_str = (
@@ -641,7 +651,7 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
                 lines.append(
                     f"    {muskel_str} & {kw} & "
                     f"{lfmt('PER')} & {lfmt('OVU')} & {lfmt('LUT')} & "
-                    f"{chi2_str} & {p_str} & {w_str} \\\\"
+                    f"{p_fr_str} & {p_ph_str} & {w_str} \\\\"
                 )
             lines.append(r"    \hline")
  
