@@ -838,11 +838,13 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
                     stat_key = (exercise, muscle, kennwert)
                     if stat_key in stats_dict and stats_dict[stat_key]["signifikant"]:
                         sig_info = stats_dict[stat_key]
-                        y_max = ax_bar.get_ylim()[1]
-                        y_range = y_max - ax_bar.get_ylim()[0]
                         
-                        # Höhe für Brackets relativ zum Plot
-                        bracket_height = y_max + 0.05 * y_range
+                        # Den höchsten Punkt der Balken in DIESEM Diagramm finden (Mean + SD)
+                        local_bar_max = max([m + s for m, s in zip(means, sds)]) if means else 0
+                        y_range = ax_bar.get_ylim()[1] - ax_bar.get_ylim()[0]
+                        
+                        # Höhe für Brackets direkt über dem höchsten Balken starten
+                        bracket_height = local_bar_max + 0.05 * y_range
                         bracket_offset = 0.08 * y_range
                         
                         # Post-hoc-Vergleiche prüfen
@@ -876,19 +878,19 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
                             y_bracket = bracket_height + level * bracket_offset
                             x1, x2 = x_pos[i1], x_pos[i2]
                             
-                            # Horizontale Linie
+                            # Horizontale Linie (clip_on=False verhindert das Abschneiden am Rand)
                             ax_bar.plot([x1, x2], [y_bracket, y_bracket],
-                                       color="black", linewidth=1.0, zorder=10)
+                                       color="black", linewidth=1.0, zorder=10, clip_on=False)
                             # Vertikale Endstriche
                             tick_len = 0.02 * y_range
                             ax_bar.plot([x1, x1], [y_bracket - tick_len, y_bracket],
-                                       color="black", linewidth=1.0, zorder=10)
+                                       color="black", linewidth=1.0, zorder=10, clip_on=False)
                             ax_bar.plot([x2, x2], [y_bracket - tick_len, y_bracket],
-                                       color="black", linewidth=1.0, zorder=10)
+                                       color="black", linewidth=1.0, zorder=10, clip_on=False)
                             # Signifikanz-Symbol
                             ax_bar.text((x1 + x2) / 2, y_bracket + 0.01 * y_range,
                                        symbol, ha="center", va="bottom",
-                                       fontsize=12, fontweight="bold", zorder=11)
+                                       fontsize=12, fontweight="bold", zorder=11, clip_on=False)
  
 
         fig.suptitle(
