@@ -255,9 +255,13 @@ def collect_curves(df_best):
     Returns:
         curves: { exercise_label: { phase_short: { muscle: [array, ...] } } }
         events: { exercise_label: { phase_short: [ [(pct, label, color, ls), ...], ... ] } }
+        trial_metadata: { exercise_label: { phase_short: { muscle: [
+            {"subject": str, "trial": str, "events": [(pct, label), ...]}, ...
+        ] } } }
     """
     data = {}
     event_data = {}
+    trial_metadata = {}
 
     for _, row in df_best.iterrows():
         subject     = row["Subject"]
@@ -287,9 +291,23 @@ def collect_curves(df_best):
         if label not in data:
             data[label] = {}
             event_data[label] = {}
+            trial_metadata[label] = {}
         if phase_short not in data[label]:
             data[label][phase_short] = {m: [] for m in MUSCLE_NAMES}
             event_data[label][phase_short] = []
+            trial_metadata[label][phase_short] = {m: [] for m in MUSCLE_NAMES}
+
+        # Events aus KIN-Datei lesen (für diesen spezifischen Trial)
+        kin_path = find_kin_file(
+            subject, phase_key, ex_folder, side_folder, trial_name
+        )
+        trial_events = []
+        if kin_path is not None:
+            evts = get_event_pct(kin_path, label)
+            if evts:
+                event_data[label][phase_short].append(evts)
+                # Nur (pct, label) für Metadata speichern
+                trial_events = [(pct, lbl) for pct, lbl, _, _ in evts]
 
         for muscle in MUSCLE_NAMES:
             col = f"{SIDE}_{muscle}"
@@ -297,17 +315,13 @@ def collect_curves(df_best):
                 vals = df[col].values
                 if len(vals) == N_POINTS and not np.all(np.isnan(vals)):
                     data[label][phase_short][muscle].append(vals)
+                    trial_metadata[label][phase_short][muscle].append({
+                        "subject": subject,
+                        "trial": trial_name,
+                        "events": trial_events
+                    })
 
-        # Events aus KIN-Datei sammeln
-        kin_path = find_kin_file(
-            subject, phase_key, ex_folder, side_folder, trial_name
-        )
-        if kin_path is not None:
-            evts = get_event_pct(kin_path, label)
-            if evts:
-                event_data[label][phase_short].append(evts)
-
-    return data, event_data
+    return data, event_data, trial_metadata
 
 
 def draw_event_lines(ax, event_lists, add_label=True):
@@ -486,30 +500,62 @@ def _get_landing_pct_ranges(events, exercise, phase_order):
     return ranges
 
 
-def _compute_phase_means_in_range(curves_exercise, phase_order, muscle,
-                                  pct_start, pct_end):
+def _compute_phase_means_in_range(curves_exercise, trial_meta_exercise, 
+                                  phase_order, muscle, exercise_label):
     """
-    Berechnet mean und SD der EMG-Amplitude innerhalb eines
-    pct-Bereichs pro Phase.
+    Berechnet mean und SD der EMG-Amplitude innerhalb der INDIVIDUELLEN
+    Landungsphase jedes Trials (statt Gruppenmittelwert-Zeitfenster).
 
     Returns: dict {phase: (mean, sd, n)}
     """
     pct = np.linspace(0, 100, N_POINTS)
-    mask = (pct >= pct_start) & (pct <= pct_end)
+
+    # Event-Labels für Landing je nach Übung
+    if "CMJ" in exercise_label:
+        landing_label = "Landing"
+    elif "DJ" in exercise_label:
+        landing_label = "Landing 2"
+    else:
+        # SQ hat keine Landungsphase
+        return {p: (np.nan, np.nan, 0) for p in phase_order}
 
     result = {}
     for phase in phase_order:
         muscle_dict = curves_exercise.get(phase, {})
         arrays = muscle_dict.get(muscle, [])
-        if not arrays:
+        metadata = trial_meta_exercise.get(phase, {}).get(muscle, [])
+        
+        if not arrays or len(arrays) != len(metadata):
             result[phase] = (np.nan, np.nan, 0)
             continue
 
         trial_means = []
-        for arr in arrays:
+        missing_events = []
+        
+        for arr, meta in zip(arrays, metadata):
+            events = meta.get("events", [])
+            # Finde Landing-Event für diesen Trial
+            landing_pct = None
+            for event_pct, event_label in events:
+                if event_label == landing_label:
+                    landing_pct = event_pct
+                    break
+            
+            if landing_pct is None:
+                # Landing-Event fehlt → Trial überspringen (Variante A)
+                missing_events.append(f"{meta['subject']}/{meta['trial']}")
+                continue
+            
+            # Individuelles Zeitfenster: Landing → End (100%)
+            mask = (pct >= landing_pct) & (pct <= 100)
             segment = arr[mask]
             if len(segment) > 0:
                 trial_means.append(np.nanmean(segment))
+        
+        if missing_events:
+            print(f"    [WARNUNG] {exercise_label} | {muscle} | {phase}: "
+                  f"{len(missing_events)} Trial(s) ohne '{landing_label}'-Event übersprungen: "
+                  f"{', '.join(missing_events)}")
 
         if trial_means:
             result[phase] = (
@@ -522,30 +568,62 @@ def _compute_phase_means_in_range(curves_exercise, phase_order, muscle,
 
     return result
 
-def _compute_phase_peaks_in_range(curves_exercise, phase_order, muscle,
-                                  pct_start, pct_end):
+def _compute_phase_peaks_in_range(curves_exercise, trial_meta_exercise,
+                                  phase_order, muscle, exercise_label):
     """
-    Berechnet Peak (Maximum) und SD der EMG-Amplitude innerhalb eines
-    pct-Bereichs pro Phase.
+    Berechnet Peak (Maximum) und SD der EMG-Amplitude innerhalb der 
+    INDIVIDUELLEN Landungsphase jedes Trials.
 
     Returns: dict {phase: (peak_mean, peak_sd, n)}
     """
     pct = np.linspace(0, 100, N_POINTS)
-    mask = (pct >= pct_start) & (pct <= pct_end)
+
+    # Event-Labels für Landing je nach Übung
+    if "CMJ" in exercise_label:
+        landing_label = "Landing"
+    elif "DJ" in exercise_label:
+        landing_label = "Landing 2"
+    else:
+        # SQ hat keine Landungsphase
+        return {p: (np.nan, np.nan, 0) for p in phase_order}
 
     result = {}
     for phase in phase_order:
         muscle_dict = curves_exercise.get(phase, {})
         arrays = muscle_dict.get(muscle, [])
-        if not arrays:
+        metadata = trial_meta_exercise.get(phase, {}).get(muscle, [])
+        
+        if not arrays or len(arrays) != len(metadata):
             result[phase] = (np.nan, np.nan, 0)
             continue
 
         trial_peaks = []
-        for arr in arrays:
+        missing_events = []
+        
+        for arr, meta in zip(arrays, metadata):
+            events = meta.get("events", [])
+            # Finde Landing-Event für diesen Trial
+            landing_pct = None
+            for event_pct, event_label in events:
+                if event_label == landing_label:
+                    landing_pct = event_pct
+                    break
+            
+            if landing_pct is None:
+                # Landing-Event fehlt → Trial überspringen (Variante A)
+                missing_events.append(f"{meta['subject']}/{meta['trial']}")
+                continue
+            
+            # Individuelles Zeitfenster: Landing → End (100%)
+            mask = (pct >= landing_pct) & (pct <= 100)
             segment = arr[mask]
             if len(segment) > 0:
                 trial_peaks.append(np.nanmax(segment))
+        
+        if missing_events:
+            print(f"    [WARNUNG] {exercise_label} | {muscle} | {phase}: "
+                  f"{len(missing_events)} Trial(s) ohne '{landing_label}'-Event übersprungen: "
+                  f"{', '.join(missing_events)}")
 
         if trial_peaks:
             result[phase] = (
@@ -648,8 +726,8 @@ def _add_overlay_stickfigures(ax, exercise, events, phase_order):
         )
         ax.add_artist(ab)
  
- 
-def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
+
+def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats_dict):
     """
     Pro Übung: 5 Zeilen (Muskeln).
     Alle 3 Phasen überlagert in jedem Subplot.
@@ -752,13 +830,21 @@ def plot_phases_overlay_by_muscle(curves, events, out_dir, stats_dict):
             if has_bars:
                 pct_s, pct_e, bar_label, bar_color = landing_ranges[0]
  
-                # Mean-Aktivierung
+                # Mean-Aktivierung (individuell pro Trial berechnet)
                 mean_stats = _compute_phase_means_in_range(
-                    phase_data, phase_order, muscle, pct_s, pct_e,
+                    phase_data, 
+                    trial_metadata.get(exercise, {}),
+                    phase_order, 
+                    muscle, 
+                    exercise,
                 )
-                # Peak-Aktivierung
+                # Peak-Aktivierung (individuell pro Trial berechnet)
                 peak_stats = _compute_phase_peaks_in_range(
-                    phase_data, phase_order, muscle, pct_s, pct_e,
+                    phase_data,
+                    trial_metadata.get(exercise, {}),
+                    phase_order,
+                    muscle,
+                    exercise,
                 )
  
                 # ── Gemeinsame Y-Achse berechnen (über Kurve + beide Balken) ──
@@ -1095,7 +1181,7 @@ def main():
         print("[WARNUNG] Keine statistischen Ergebnisse gefunden – keine Signifikanz-Brackets")
 
     print("\nSammle EMG-Kurven der besten Trials ...")
-    curves, events = collect_curves(df_best)
+    curves, events, trial_metadata = collect_curves(df_best)
 
     if not curves:
         print("[FEHLER] Keine Kurven gefunden.")
@@ -1111,7 +1197,7 @@ def main():
     print(f"\nSHOW_SD = {SHOW_SD}")
     print("\nErstelle Plots ...")
     plot_all_muscles_by_phase(curves, events, OUTPUT_DIR)
-    plot_phases_overlay_by_muscle(curves, events, OUTPUT_DIR, stats_dict)
+    plot_phases_overlay_by_muscle(curves, events, trial_metadata, OUTPUT_DIR, stats_dict)
 
     print("\nErstelle Plots mit Einzeltrials ...")
     plot_all_muscles_by_phase_with_trials(curves, events, OUTPUT_DIR)
