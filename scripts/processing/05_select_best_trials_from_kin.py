@@ -321,7 +321,7 @@ def main():
         .reset_index()
     )
     df_group.columns = ["Übung", "Phase", "Mittelwert", "SD", "n"]
-    csv_group = OUTPUT_DIR / "gruppenmittelwerte.csv"
+    csv_group = OUTPUT_DIR / "gruppenmittelwerte_gesamte_uebung.csv"
     df_group.to_csv(csv_group, index=False)
     print(f"  CSV (Gruppen)   : {csv_group.name}")
 
