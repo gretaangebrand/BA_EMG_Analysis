@@ -379,7 +379,7 @@ def plot_squat(df, bilateral, out_path, title):
     axes[1].grid(alpha=0.3)
  
     axes[0].text(0.02, 0.95,
-                 "Keine Event-Markierungen –\ngesamter Trial wird analysiert",
+                 "", #Keine Event-Markierungen –\ngesamter Trial wird analysiert
                  transform=axes[0].transAxes, fontsize=8, va="top",
                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.85))
  
