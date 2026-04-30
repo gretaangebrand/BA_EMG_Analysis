@@ -122,6 +122,7 @@ STICKFIGURES_OVERLAY = {
 
 # ── Event-Konfiguration pro Übungstyp ─────────────────────────
 # Jedes Event: (event_start_col, event_time_col, label, farbe, linestyle)
+
 EVENT_CONFIG = {
     "CMJ": [
         ("event_start_s",    "Start",     "#888888", ":"),
@@ -443,10 +444,12 @@ def plot_all_muscles_by_phase(curves, events, out_dir):
                    ncol=len(handles), **FONT["legend"], framealpha=0.9,
                    bbox_to_anchor=(0.5, -0.02))
 
+        """
         fig.suptitle(
             f"{exercise}  –  Gruppenmittel aller Muskeln (beste Trials)",
             **FONT["suptitle"], y=1.01
         )
+        """
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
         out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_by_phase.svg"
@@ -491,11 +494,11 @@ def _get_landing_pct_ranges(events, exercise, phase_order):
     if "CMJ" in exercise:
         if "Landing" in mean_events and "End" in mean_events:
             ranges.append((mean_events["Landing"], 100.0,
-                           "Landung", "#D55E00"))
+                           "Landing", "#D55E00"))
     elif "DJ" in exercise:
         if "Landing 2" in mean_events and "End" in mean_events:
             ranges.append((mean_events["Landing 2"], 100.0,
-                           "Landung 2", "#D55E00"))
+                           "Landing 2", "#D55E00"))
 
     return ranges
 
@@ -978,11 +981,11 @@ def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats
                                        symbol, ha="center", va="bottom",
                                        fontsize=12, fontweight="bold", zorder=11, clip_on=False)
  
-
+        """
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel (Gruppenmittel, beste Trials)",
             **FONT["suptitle"], y=1.01
-        )
+        )"""
 
         # ── Strichmaennchen oberhalb des obersten Muskel-Subplots ──
         _add_overlay_stickfigures(
@@ -1071,10 +1074,11 @@ def plot_all_muscles_by_phase_with_trials(curves, events, out_dir):
                    ncol=min(len(handles), 9), **FONT["legend"], framealpha=0.9,
                    bbox_to_anchor=(0.5, -0.02))
 
+        """
         fig.suptitle(
             f"{exercise}  –  Einzeltrials aller Muskeln (beste Trials, alle Probandinnen)",
             **FONT["suptitle"], y=1.01
-        )
+        )"""
 
         plt.tight_layout(rect=[0, 0.05, 1, 0.96])
         out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_by_phase_with_trials.svg"
@@ -1138,10 +1142,12 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
 
         axes[-1].set_xlabel("Bewegungszyklus in %", **FONT["axis_label"])
 
+        """
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel, Einzeltrials (alle Probandinnen)",
             **FONT["suptitle"], y=1.01
         )
+        """
 
         plt.tight_layout(rect=[0, 0, 1, 0.88])
         
