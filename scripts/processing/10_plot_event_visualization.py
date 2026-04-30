@@ -306,8 +306,8 @@ def plot_jump(df, exercise, out_path):
             label="vGRF (Gesamt)")
     ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
                alpha=0.7, label="1 BW")
-    ax.set_ylabel("vGRF [BW]")
-    ax.set_xlabel("Zeit [s]")
+    ax.set_ylabel("vGRF in BW")
+    ax.set_xlabel("Zeit in s")
     ax.grid(alpha=0.3)
  
     y_lo, y_hi = ax.get_ylim()
@@ -341,7 +341,7 @@ def plot_jump(df, exercise, out_path):
     fig.subplots_adjust(top=0.80)
  
     ax.legend(loc="center right", fontsize=8)
-    fig.suptitle(f"vGRF und Events beim {exercise}", fontsize=11, y=1.02)
+    #fig.suptitle(f"vGRF und Events beim {exercise}", fontsize=11, y=1.02)
     fig.savefig(out_path, format="svg", bbox_inches="tight", dpi=300)
     plt.close(fig)
     print(f"  [OK] {out_path.name}")
@@ -367,14 +367,14 @@ def plot_squat(df, bilateral, out_path, title):
     axes[0].plot(t_v, v, color=COLOR_GRF, linewidth=1.2, label=vgrf_label)
     axes[0].axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
                     alpha=0.7, label="1 BW")
-    axes[0].set_ylabel("vGRF [BW]")
+    axes[0].set_ylabel("vGRF in BW")
     axes[0].legend(loc="upper right", fontsize=8)
     axes[0].grid(alpha=0.3)
  
     axes[1].plot(t_k, k, color=COLOR_KNEE, linewidth=1.2,
                  label="Kniewinkel rechts")
-    axes[1].set_ylabel("Kniewinkel [°]")
-    axes[1].set_xlabel("Zeit [s]")
+    axes[1].set_ylabel("Kniewinkel in °")
+    axes[1].set_xlabel("Zeit in s")
     axes[1].legend(loc="upper right", fontsize=8)
     axes[1].grid(alpha=0.3)
  
@@ -391,7 +391,7 @@ def plot_squat(df, bilateral, out_path, title):
     _add_stickfigures(axes[0], positions_files)
  
     fig.subplots_adjust(top=0.85, hspace=0.15)
-    fig.suptitle(title, fontsize=11, y=1.02)
+    #fig.suptitle(title, fontsize=11, y=1.02)
     fig.savefig(out_path, format="svg", bbox_inches="tight", dpi=300)
     plt.close(fig)
     print(f"  [OK] {out_path.name}")
@@ -421,10 +421,10 @@ def main():
             plot_jump(df, key, out_path)
         elif key == "SQ":
             plot_squat(df, bilateral=True, out_path=out_path,
-                       title="vGRF, Kniewinkel und Events beim Squat")
+                       title="") #vGRF, Kniewinkel und Events beim Squat
         elif key == "SQ_R":
             plot_squat(df, bilateral=False, out_path=out_path,
-                       title="vGRF und Events beim Squat (unilateral rechts)")
+                       title="") #vGRF und Events beim Squat (unilateral rechts)
  
     print("\nFertig.")
  

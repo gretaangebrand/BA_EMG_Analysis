@@ -286,18 +286,18 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
 
     # Grenzlinie bei CV = 15 (in Colorbar markieren)
     cbar = plt.colorbar(im, ax=ax, shrink=0.7, pad=0.02)
-    cbar.set_label("CV [%]", fontsize=11)
+    cbar.set_label("CV in %", fontsize=11)
     cbar.ax.tick_params(labelsize=9)
     cbar.ax.axhline(CV_THRESHOLD, color="black", linewidth=1.2,
                     linestyle="--")
     cbar.ax.text(1.5, CV_THRESHOLD, f"  Schwelle {CV_THRESHOLD:.0f}%",
                  va="center", fontsize=9)
 
-    ax.set_title(
-        f"CV-Responder-Analyse – {kennwert}   "
-        f"(Responder: CV > {CV_THRESHOLD:.0f} %)",
-        fontsize=14, fontweight="bold", pad=12,
-    )
+    #ax.set_title(
+        #f"CV-Responder-Analyse – {kennwert}   "
+        #f"(Responder: CV > {CV_THRESHOLD:.0f} %)",
+        #fontsize=14, fontweight="bold", pad=12,
+    #)
 
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -436,7 +436,7 @@ def _generate_latex_table(df_group: pd.DataFrame, out_path: Path):
         lines.append(r"    \hline")
         lines.append(
             r"    \textbf{Übung} & \textbf{Muskel} & "
-            r"\textbf{CV-Median [\%]} & \textbf{CV-Range [\%]} & "
+            r"\textbf{CV-Median / \%]} & \textbf{CV-Range / \%]} & "
             r"\textbf{Responder} & \textbf{n} \\"
         )
         lines.append(r"    \hline")

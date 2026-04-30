@@ -422,7 +422,7 @@ def _save_formatted_excel(df: pd.DataFrame, out_path: Path):
     # ── Spalten-Header (ohne ANOVA-spezifische Spalten) ──
     headers = [
         "Übung", "Muskel", "Abschnitt", "Kennwert",
-        "M ± SD\nPER (% BL)", "M ± SD\nOVU (% BL)", "M ± SD\nLUT (% BL)",
+        "M ± SD\nPER / % BL", "M ± SD\nOVU / % BL", "M ± SD\nLUT / % BL",
         "Test",
         "p-Friedman",
         "p-post-hoc\n(min)",
@@ -593,7 +593,7 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
         lines.append(r"    \hline")
         lines.append(
             r"    \textbf{Muskel} & \textbf{Kennwert} & "
-            r"\textbf{PER (\% BL)} & \textbf{OVU (\% BL)} & \textbf{LUT (\% BL)} & "
+            r"\textbf{PER /\% BL} & \textbf{OVU /\% BL} & \textbf{LUT /\% BL} & "
             r"\textbf{$p_{Friedman}$} & \textbf{$p_{post-hoc}$} \\"
         )
         lines.append(r"    \hline")
