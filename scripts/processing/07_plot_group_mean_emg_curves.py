@@ -419,13 +419,13 @@ def plot_all_muscles_by_phase(curves, events, out_dir):
                 f"(n={len(next(iter(muscle_dict.values()), []))})",
                 **FONT["subtitle"],
             )
-            ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
+            ax.set_xlabel("Bewegungszyklus in %", **FONT["axis_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
 
-        axes[0].set_ylabel("EMG-Amplitude (% Baseline)", **FONT["axis_label"])
+        axes[0].set_ylabel("EMG-Amplitude in % Baseline)", **FONT["axis_label"])
 
         # Gemeinsame Legende
         handles, labels = axes[0].get_legend_handles_labels()
@@ -805,7 +805,7 @@ def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
  
-            ax.set_ylabel(f"{muscle}\n(% BL)", **FONT["tick_label"])
+            ax.set_ylabel(f"{muscle}\nin % BL", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
@@ -824,7 +824,7 @@ def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats
                     ax.set_ylim(bottom=0)
  
             if row_idx == n_mus - 1:
-                ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
+                ax.set_xlabel("Bewegungszyklus in %", **FONT["axis_label"])
  
             # ── Balkendiagramme (Mean + Peak) ─────────────────────
             if has_bars:
@@ -1048,13 +1048,13 @@ def plot_all_muscles_by_phase_with_trials(curves, events, out_dir):
                 f"(n={len(next(iter(muscle_dict.values()), []))})",
                 **FONT["subtitle"],
             )
-            ax.set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
+            ax.set_xlabel("Bewegungszyklus in %", **FONT["axis_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.grid(axis="y", alpha=0.2)
 
-        axes[0].set_ylabel("EMG-Amplitude (% Baseline)", **FONT["axis_label"])
+        axes[0].set_ylabel("EMG-Amplitude in % Baseline", **FONT["axis_label"])
 
         # Legende
         handles, labels = axes[0].get_legend_handles_labels()
@@ -1128,7 +1128,7 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
 
-            ax.set_ylabel(f"{muscle}\n(% BL)", **FONT["tick_label"])
+            ax.set_ylabel(f"{muscle}\nin % BL", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
@@ -1136,7 +1136,7 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
             ax.legend(**FONT["legend"], loc="upper right", framealpha=0.8)
 
 
-        axes[-1].set_xlabel("Bewegungszyklus [%]", **FONT["axis_label"])
+        axes[-1].set_xlabel("Bewegungszyklus in %", **FONT["axis_label"])
 
         fig.suptitle(
             f"{exercise}  –  Phasenvergleich pro Muskel, Einzeltrials (alle Probandinnen)",

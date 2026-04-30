@@ -125,9 +125,9 @@ def _fmt_mean_sd(mean: float, sd: float, ex_name: str) -> str:
 def _get_unit_label(ex_name: str) -> str:
     """Gibt das Y-Achsen-Label passend zur Übung zurück."""
     if _is_jump_exercise(ex_name):
-        return "Sprunghöhe [m]"
+        return "Sprunghöhe in m"
     else:
-        return "Max. Kniewinkel [°]"
+        return "Max. Kniewinkel in °"
 
 
 def get_jumpheight(emg_path: Path) -> float:
@@ -429,7 +429,7 @@ def _create_overview_pdf(df_best: pd.DataFrame, df_group: pd.DataFrame,
     )
  
     for ax, title, data in [
-        (ax1, "Gruppenmittelwerte (beste Trials pro Subject × Phase)", tab1),
+        (ax1, "Gruppenmittelwerte (beste Trials pro Probandin und Phase)", tab1),
         (ax2, "Individuelle beste Trials", tab2),
     ]:
         ax.axis("off")
@@ -523,7 +523,7 @@ def _create_group_barplot(df_group: pd.DataFrame, out_path: Path):
     for idx in range(n_ex, len(axes_flat)):
         axes_flat[idx].set_visible(False)
  
-    fig.suptitle("Gruppenmittelwerte der besten Trials", fontsize=14, fontweight="bold")
+    fig.suptitle("", fontsize=14, fontweight="bold") #Gruppenmittelwerte der besten Trials"
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -601,7 +601,7 @@ def _create_individual_plot(df_best: pd.DataFrame, out_path: Path):
     for idx in range(n_ex, len(axes_flat)):
         axes_flat[idx].set_visible(False)
  
-    fig.suptitle("Individuelle beste Trials (pro Probandin × Phase)",
+    fig.suptitle("", #Individuelle beste Trials (pro Probandin × Phase)
                  fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -670,7 +670,7 @@ def _create_availability_plot(df_best: pd.DataFrame, out_path: Path):
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", alpha=0.3)
  
-    fig.suptitle("Verfügbarkeit der besten Trials pro Übung und Zyklusphase",
+    fig.suptitle("", #Verfügbarkeit der besten Trials pro Übung und Zyklusphase
                  fontsize=13, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -841,9 +841,9 @@ def _create_peak_phase_plot(df_best: pd.DataFrame, out_path: Path):
         axes[grid_row, grid_col].set_visible(False)
         axes[grid_row + 1, grid_col].set_visible(False)
  
-    fig.suptitle(
-        "Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n"
-        "(großer Punkt = absolute Bestleistung über alle 3 Phasen)",
+    fig.suptitle("",
+        # "" Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n
+        #(großer Punkt = absolute Bestleistung über alle 3 Phasen)
         fontsize=13, fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 0.95, 0.94])
@@ -1186,9 +1186,9 @@ def _create_enhanced_peak_phase_plot(df_best: pd.DataFrame,
         axes[grid_row, grid_col].set_visible(False)
         axes[grid_row + 1, grid_col].set_visible(False)
 
-    fig.suptitle(
-        "Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n"
-        "(großer Punkt = Bestleistung über alle Zyklusphasen; fett = Bestleistung in ≥3 Übungen in derselben Zyklusphase)",
+    fig.suptitle("",
+        #"Individuelle Bestleistung pro Probandin – in welcher Zyklusphase?\n"
+        #"(großer Punkt = Bestleistung über alle Zyklusphasen; fett = Bestleistung in ≥3 Übungen in derselben Zyklusphase)",
         fontsize=13, fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 0.95, 0.92])
@@ -1232,7 +1232,7 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         subj_dominant[row["Subject"]] = dominant if dominant != "—" else None
 
     # Konsolen-Kontrollausgabe
-    print("\n  Gruppenmittelwerte pro Übung × Phase (nur Konsole, nicht im Plot):")
+    print("\n  Gruppenmittelwerte pro Übung und Phase (nur Konsole, nicht im Plot):")
 
     for idx, ex_name in enumerate(exercise_order):
         grid_row = (idx // n_cols) * 2
@@ -1431,10 +1431,10 @@ def _create_enhanced_peak_phase_plot_with_mean(df_best: pd.DataFrame,
         axes[grid_row, grid_col].set_visible(False)
         axes[grid_row + 1, grid_col].set_visible(False)
 
-    fig.suptitle(
-        "Individuelle Bestleistung pro Probandin\n"
-        "(großer Punkt = Bestleistung; fett = Konsistenz in ≥3 Übungen | "
-        "Violine = Gruppenverteilung)",
+    fig.suptitle("",
+        #"Individuelle Bestleistung pro Probandin\n"
+        #"(großer Punkt = Bestleistung; fett = Konsistenz in ≥3 Übungen | "
+        #"Violine = Gruppenverteilung)",
         fontsize=12, fontweight="bold",
     )
     plt.tight_layout(rect=[0, 0, 0.95, 0.95])

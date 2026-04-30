@@ -470,7 +470,7 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
             )
  
         ax.set_title(ex_name, fontsize=12, fontweight="bold")
-        ax.set_ylabel("Mean EMG (% Baseline)", fontsize=10)
+        ax.set_ylabel("Mean EMG in % Baseline)", fontsize=10)
         ax.set_xticks(x + bar_width)
         ax.set_xticklabels(muscles, fontsize=8, rotation=15, ha="right")
         ax.legend(fontsize=9, framealpha=0.9)
@@ -478,8 +478,8 @@ def _create_overview_plot(df: pd.DataFrame, out_path: Path):
         ax.spines["right"].set_visible(False)
         ax.grid(axis="y", alpha=0.3)
  
-    fig.suptitle(
-        "EMG-Aktivierung: Gruppenmittelwerte der besten Trials (mean EMG)",
+    fig.suptitle("",
+        #"EMG-Aktivierung: Gruppenmittelwerte der besten Trials (mean EMG)",
         fontsize=14, fontweight="bold",
     )
     plt.tight_layout()
@@ -575,11 +575,11 @@ def _create_responder_plot(df: pd.DataFrame, out_path: Path):
                 ha="right", va="top", color="#555",
             )
  
-    fig.suptitle(
-        "Individuelle EMG-Verläufe über den Zyklus (rot = Responder, CV > 15 %)",
+    fig.suptitle("",
+        #"Individuelle EMG-Verläufe über den Zyklus (rot = Responder, CV > 15 %)",
         fontsize=13, fontweight="bold",
     )
-    fig.text(0.005, 0.5, "Mean EMG (% Baseline)",
+    fig.text(0.005, 0.5, "Mean EMG in % Baseline)",
              va="center", rotation="vertical", fontsize=10)
     plt.tight_layout(rect=[0.02, 0, 1, 0.97])
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
@@ -713,12 +713,12 @@ def _create_peak_pct_plot(df: pd.DataFrame, out_path: Path):
  
         # Gemeinsamer Titel
         abschnitt_label = job_list[0][2]
-        fig.suptitle(
-            f"Peak-Zeitpunkt während {abschnitt_label} [% Bewegungszyklus]\n"
-            f"(jeder Punkt = eine Probandin, Linie = Mittelwert)",
+        fig.suptitle("",
+            #f"Peak-Zeitpunkt während {abschnitt_label} [% Bewegungszyklus]\n"
+            #f"(jeder Punkt = eine Probandin, Linie = Mittelwert)",
             fontsize=13, fontweight="bold",
         )
-        fig.text(0.005, 0.5, "Peak-Zeitpunkt [% Bewegungszyklus]",
+        fig.text(0.005, 0.5, "Peak-Zeitpunkt in % Bewegungszyklus",
                  va="center", rotation="vertical", fontsize=10)
         plt.tight_layout(rect=[0.02, 0, 1, 0.94])
  
