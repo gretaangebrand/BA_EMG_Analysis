@@ -39,13 +39,13 @@ ax.plot([cmj_t[0], cmj_t[0]], [y-height/2, y+height/2], color=c_start_end, lines
 ax.text(cmj_t[0], y+height/2 + 0.05, 'Start', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
 
 ax.plot([cmj_t[1], cmj_t[1]], [y-height/2, y+height/2], color=c_takeoff, linestyle='-', lw=2)
-ax.text(cmj_t[1], y+height/2 + 0.05, 'Take-off', ha='center', va='bottom', fontsize=9, color=c_takeoff, fontweight='bold')
+ax.text(cmj_t[1], y+height/2 + 0.05, 'Absprung', ha='center', va='bottom', fontsize=9, color=c_takeoff, fontweight='bold')
 
 ax.plot([cmj_t[2], cmj_t[2]], [y-height/2, y+height/2], color=c_landing, linestyle='-', lw=2)
-ax.text(cmj_t[2], y+height/2 + 0.05, 'Landing', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
+ax.text(cmj_t[2], y+height/2 + 0.05, 'Landung', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
 
 ax.plot([cmj_t[3], cmj_t[3]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
-ax.text(cmj_t[3], y+height/2 + 0.05, 'End', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+ax.text(cmj_t[3], y+height/2 + 0.05, 'Tiefster COM', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
 
 ax.text(cmj_t[2] + (cmj_t[3]-cmj_t[2])/2, y, 'Auswertung\n(Landung)', ha='center', va='center', fontsize=9, color='white', fontweight='bold')
 
@@ -58,16 +58,16 @@ ax.barh(y, dj_t[4]-dj_t[3], left=dj_t[3], height=height, color=highlight_color, 
 
 # DJ Event Linien & Text
 ax.plot([dj_t[1], dj_t[1]], [y-height/2, y+height/2], color=c_landing, linestyle='-', lw=2)
-ax.text(dj_t[1], y+height/2 + 0.05, 'Landing 1', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
+ax.text(dj_t[1], y+height/2 + 0.05, 'Landung 1', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
 
 ax.plot([dj_t[2], dj_t[2]], [y-height/2, y+height/2], color=c_takeoff, linestyle='-', lw=2)
-ax.text(dj_t[2], y+height/2 + 0.05, 'Take-off', ha='center', va='bottom', fontsize=9, color=c_takeoff, fontweight='bold')
+ax.text(dj_t[2], y+height/2 + 0.05, 'Absprung', ha='center', va='bottom', fontsize=9, color=c_takeoff, fontweight='bold')
 
 ax.plot([dj_t[3], dj_t[3]], [y-height/2, y+height/2], color=c_landing, linestyle='--', lw=2)
-ax.text(dj_t[3], y+height/2 + 0.05, 'Landing 2', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
+ax.text(dj_t[3], y+height/2 + 0.05, 'Landung 2', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
 
 ax.plot([dj_t[4], dj_t[4]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
-ax.text(dj_t[4], y+height/2 + 0.05, 'End', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+ax.text(dj_t[4], y+height/2 + 0.05, 'Tiefster COM', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
 
 ax.text(dj_t[3] + (dj_t[4]-dj_t[3])/2, y, 'Auswertung\n(Landung 2)', ha='center', va='center', fontsize=9, color='white', fontweight='bold')
 
