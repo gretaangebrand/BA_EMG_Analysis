@@ -576,6 +576,14 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
         "% Friedman-Test | Post-hoc: Wilcoxon, Bonferroni",
         "",
     ]
+
+    MUSKEL_ORDER = [
+    "Gluteus Medius",
+    "Vastus Lateralis",
+    "Biceps Femoris",
+    "Semitendinosus",
+    "Gastrocnemius Medialis",
+    ]
  
     for (uebung, abschnitt), grp in df.groupby(["Uebung", "Abschnitt"]):
         label_safe = (
@@ -592,13 +600,16 @@ def _generate_latex_tables(df: pd.DataFrame, out_path: Path):
         lines.append(r"  \begin{tabular}{l l c c c c c }")
         lines.append(r"    \hline")
         lines.append(
-            r"    \textbf{Muskel} & \textbf{Kennwert} & "
+            r"\textbf{Muskel} & \textbf{Kennwert} & "
             r"\textbf{PER /\% BL} & \textbf{OVU /\% BL} & \textbf{LUT /\% BL} & "
             r"\textbf{$p_{Friedman}$} & \textbf{$p_{post-hoc}$} \\"
         )
         lines.append(r"    \hline")
  
-        for muskel in grp["Muskel"].unique():
+        for muskel in MUSKEL_ORDER:
+            if muskel not in grp["Muskel"].values:
+                continue
+
             first_row = True
             for kennwert in KENNWERTE:
                 row = grp[
