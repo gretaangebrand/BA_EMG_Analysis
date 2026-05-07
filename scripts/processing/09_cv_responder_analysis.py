@@ -47,7 +47,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
+#from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
 import sys
 sys.path.insert(0, str(Path(r'C:\Users\Greta\OneDrive\Desktop\MCI\3-SS2026\BA\BA_Daten_EMG')))
@@ -245,17 +246,20 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
-    # Diskrete Colormap: rot für Responder (>15), grau/grün für Non-Responder
-    cmap = LinearSegmentedColormap.from_list(
-        "cv_cmap",
-        ["#2E7D32", "#A5D6A7", "#FFF59D", "#FFB74D", "#E53935"],
-        N=256,
-    )
+    
+
+    # Zwei Farben
+    cmap = ListedColormap(["#E0E0E0", "#009E73"])
+    
+    # Harter Cut exakt bei CV_THRESHOLD (15)
+    # Alles von 0 bis 15 wird grün, alles von 15 bis 100 wird rot
+    bounds = [0, CV_THRESHOLD, 100]
+    norm = BoundaryNorm(bounds, cmap.N)
 
     data = pivot.values
-    vmax = max(30, np.nanmax(data) if not np.all(np.isnan(data)) else 30)
 
-    im = ax.imshow(data, cmap=cmap, aspect="auto", vmin=0, vmax=vmax)
+    # imshow nutzt jetzt norm=norm anstatt vmin/vmax
+    im = ax.imshow(data, cmap=cmap, aspect="auto", norm=norm)
 
     # Keine Zahlen in Zelle - nur Farbe
     """
@@ -285,13 +289,17 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
         ax.axvline(x - 0.5, color="white", linewidth=1.5)
 
     # Grenzlinie bei CV = 15 (in Colorbar markieren)
-    cbar = plt.colorbar(im, ax=ax, shrink=0.7, pad=0.02)
-    cbar.set_label("CV in %", fontsize=11)
-    cbar.ax.tick_params(labelsize=9)
-    cbar.ax.axhline(CV_THRESHOLD, color="black", linewidth=1.2,
-                    linestyle="--")
-    cbar.ax.text(1.5, CV_THRESHOLD, f"  Schwelle {CV_THRESHOLD:.0f}%",
-                 va="center", fontsize=9)
+    cbar = plt.colorbar(im, ax=ax, shrink=0.7, pad=0.02, 
+                        ticks=[0, CV_THRESHOLD, 100],
+                        spacing='proportional')
+    
+    cbar.set_label("CV in %", fontsize=11, labelpad=15)
+    
+    # Die gestrichelte Linie liegt jetzt automatisch im unteren Bereich (bei echten 15%)
+    cbar.ax.axhline(CV_THRESHOLD, color="black", linewidth=1.2, linestyle="--")
+    
+    # va="center" bedeutet hier nur, dass der Text mittig AUF der gestrichelten Linie sitzt
+    #cbar.ax.text(3.5, CV_THRESHOLD, f"Schwelle {CV_THRESHOLD:.0f}%", va="center", fontsize=9)
 
     #ax.set_title(
         #f"CV-Responder-Analyse – {kennwert}   "
@@ -304,6 +312,70 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
     plt.close(fig)
     print(f"  SVG (Heatmap {kennwert}): {out_path.name}")
 
+def _create_stacked_barchart(df_group: pd.DataFrame, kennwert: str, out_path: Path):
+    """
+    Erstellt ein horizontales, gestapeltes Balkendiagramm (Responder vs. Non-Responder).
+    Y-Achse: Übung & Muskel, X-Achse: 0 - 100 %.
+    """
+    sub = df_group[df_group["Kennwert"] == kennwert].copy()
+    if sub.empty:
+        return
+
+    # Eigene Spalte für die Beschriftung
+    sub["Label"] = sub["Uebung"] + " | " + sub["Muskel"]
+    
+    # Sortierung sicherstellen (wie in der Heatmap)
+    plot_data = []
+    uebungen_order = list(ABSCHNITT_PRO_UEBUNG.keys())
+    
+    # Wir iterieren rückwärts, damit die erste Übung im horizontalen Plot ganz oben steht
+    for uebung in reversed(uebungen_order):
+        for muskel in reversed(MUSCLE_NAMES):
+            row = sub[(sub["Uebung"] == uebung) & (sub["Muskel"] == muskel)]
+            if not row.empty:
+                plot_data.append(row.iloc[0])
+
+    df_plot = pd.DataFrame(plot_data)
+    
+    if df_plot.empty:
+        return
+
+    # Prozentwerte berechnen
+    df_plot["Pct_Resp"] = (df_plot["n_Responder"] / df_plot["n_gesamt"]) * 100
+    df_plot["Pct_NonResp"] = (df_plot["n_NonResponder"] / df_plot["n_gesamt"]) * 100
+
+    # Plot erstellen
+    fig, ax = plt.subplots(figsize=(10, max(6, len(df_plot) * 0.35)))
+
+    y_pos = np.arange(len(df_plot))
+
+    # Balken zeichnen
+    ax.barh(y_pos, df_plot["Pct_Resp"], color="#009E73", edgecolor="white", label="Responder (> 15% CV)")
+    ax.barh(y_pos, df_plot["Pct_NonResp"], left=df_plot["Pct_Resp"], color="#E0E0E0", edgecolor="white", label="Non-Responder (<= 15% CV)")
+
+    # Achsen anpassen
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(df_plot["Label"], fontsize=10)
+    ax.set_xlabel("Anteil der Probandinnen in %", fontsize=12)
+    ax.set_xlim(0, 100)
+    
+    # Vertikale Hilfslinien zur besseren Lesbarkeit
+    ax.xaxis.grid(True, linestyle="--", alpha=0.6, color="grey")
+    ax.set_axisbelow(True)
+
+    # Horizontale Trennlinien zwischen den Übungen einfügen
+    for i in range(1, len(df_plot)):
+        # Wenn sich der Übungsname ändert, Strich zeichnen
+        if df_plot.iloc[i]["Uebung"] != df_plot.iloc[i-1]["Uebung"]:
+            ax.axhline(i - 0.5, color="black", linewidth=0.8)
+
+    # Legende oben platzieren
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.05), ncol=2, frameon=False)
+    
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  SVG (Bar Chart {kennwert}): {out_path.name}")
 
 # ============================================================
 # EXCEL-AUSGABE
@@ -572,11 +644,18 @@ def main():
     # ── Excel ──
     _save_excel(df_cv, df_group, OUTPUT_DIR / "cv_responder_uebersicht.xlsx")
 
-    # ── Heatmaps (eine pro Kennwert) ──
+    # ── Grafiken (eine pro Kennwert) ──
     for kw in KENNWERTE:
+        # Heatmap (für den Anhang)
         _create_heatmap(
             df_cv, kw,
             OUTPUT_DIR / f"cv_responder_heatmap_{kw}.svg"
+        )
+        
+        # Gestapeltes Balkendiagramm (für den Haupttext!)
+        _create_stacked_barchart(
+            df_group, kw,
+            OUTPUT_DIR / f"cv_responder_barchart_{kw}.svg"
         )
 
     # ── LaTeX-Tabelle ──
