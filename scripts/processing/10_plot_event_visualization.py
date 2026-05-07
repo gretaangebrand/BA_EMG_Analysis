@@ -305,8 +305,8 @@ def plot_jump(df, exercise, out_path):
     ax.plot(t_rel, v, color=COLOR_GRF, linewidth=1.2,
             label="vGRF (Gesamt)")
     ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
-               alpha=0.7, label="1 BW")
-    ax.set_ylabel("vGRF in BW")
+               alpha=0.7, label="1 \u00D7 Körpergewicht")
+    ax.set_ylabel("vGRF in KG")
     ax.set_xlabel("Zeit in s")
     ax.grid(alpha=0.3)
  
@@ -366,8 +366,8 @@ def plot_squat(df, bilateral, out_path, title):
     vgrf_label = "vGRF (Gesamt)" if bilateral else "vGRF (rechts)"
     axes[0].plot(t_v, v, color=COLOR_GRF, linewidth=1.2, label=vgrf_label)
     axes[0].axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
-                    alpha=0.7, label="1 BW")
-    axes[0].set_ylabel("vGRF in BW")
+                    alpha=0.7, label="1 \u00D7 Körpergewicht")
+    axes[0].set_ylabel("vGRF in KG")
     axes[0].legend(loc="upper right", fontsize=8)
     axes[0].grid(alpha=0.3)
  
