@@ -291,7 +291,8 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
     # Grenzlinie bei CV = 15 (in Colorbar markieren)
     cbar = plt.colorbar(im, ax=ax, shrink=0.7, pad=0.02, 
                         ticks=[0, CV_THRESHOLD, 100],
-                        spacing='proportional')
+                        spacing='proportional', 
+                        extend='max')
     
     cbar.set_label("CV in %", fontsize=11, labelpad=15)
     
