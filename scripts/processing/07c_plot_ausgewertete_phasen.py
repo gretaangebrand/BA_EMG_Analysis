@@ -57,6 +57,9 @@ ax.barh(y, dj_t[3]-dj_t[2], left=dj_t[2], height=height, color=flight_color, edg
 ax.barh(y, dj_t[4]-dj_t[3], left=dj_t[3], height=height, color=highlight_color, edgecolor='black')
 
 # DJ Event Linien & Text
+ax.plot([dj_t[0], dj_t[0]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
+ax.text(dj_t[0], y+height/2 + 0.05, 'Start', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+
 ax.plot([dj_t[1], dj_t[1]], [y-height/2, y+height/2], color=c_landing, linestyle='-', lw=2)
 ax.text(dj_t[1], y+height/2 + 0.05, 'Landung 1', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
 
@@ -74,6 +77,14 @@ ax.text(dj_t[3] + (dj_t[4]-dj_t[3])/2, y, 'Auswertung\n(Landung 2)', ha='center'
 # --- Squat ---
 y = 0
 ax.barh(y, sq_t[1]-sq_t[0], left=sq_t[0], height=height, color=highlight_color, edgecolor='black')
+
+# Squat Event Linien & Text
+ax.plot([sq_t[0], sq_t[0]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
+ax.text(sq_t[0], y+height/2 + 0.05, 'Start', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+
+ax.plot([sq_t[1], sq_t[1]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
+ax.text(sq_t[1], y+height/2 + 0.05, 'Ende', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+
 ax.text(0.5, y, 'Auswertung', ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
 # --- Formatierung ---
@@ -88,7 +99,7 @@ ax.spines['right'].set_visible(False)
 ax.spines['bottom'].set_visible(False)
 ax.spines['left'].set_visible(False)
 
-plt.title('Übersicht der ausgewerteten Bewegungsabschnitte und Event-Markierungen', fontsize=14, fontweight='bold', pad=20)
+#plt.title('Übersicht der ausgewerteten Bewegungsabschnitte und Event-Markierungen', fontsize=14, fontweight='bold', pad=20)
 plt.tight_layout()
 
 # Grafik speichern
