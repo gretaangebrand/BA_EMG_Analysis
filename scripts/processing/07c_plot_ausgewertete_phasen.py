@@ -10,7 +10,7 @@ output_path.mkdir(parents=True, exist_ok=True)
 
 fig, ax = plt.subplots(figsize=(10, 5))
 
-exercises = ['Squat', 'DJ', 'CMJ']
+exercises = ['DJ', 'CMJ', 'Squat']
 y_pos = np.arange(len(exercises))
 height = 0.4
 
@@ -28,8 +28,21 @@ cmj_t = [0.0, 0.4, 0.7, 1.0]
 dj_t = [0.0, 0.2, 0.5, 0.8, 1.0]
 sq_t = [0.0, 1.0]
 
-# --- CMJ ---
+# --- Squat ---
 y = 2
+ax.barh(y, sq_t[1]-sq_t[0], left=sq_t[0], height=height, color=highlight_color, edgecolor='black')
+
+# Squat Event Linien & Text
+ax.plot([sq_t[0], sq_t[0]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
+ax.text(sq_t[0], y+height/2 + 0.05, 'Start', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+
+ax.plot([sq_t[1], sq_t[1]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
+ax.text(sq_t[1], y+height/2 + 0.05, 'Ende', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+
+ax.text(0.5, y, 'Auswertung', ha='center', va='center', fontsize=10, color='white', fontweight='bold')
+
+# --- CMJ ---
+y = 1
 ax.barh(y, cmj_t[1]-cmj_t[0], left=cmj_t[0], height=height, color=gray_color, edgecolor='black')
 ax.barh(y, cmj_t[2]-cmj_t[1], left=cmj_t[1], height=height, color=flight_color, edgecolor='black', hatch='//')
 ax.barh(y, cmj_t[3]-cmj_t[2], left=cmj_t[2], height=height, color=highlight_color, edgecolor='black')
@@ -50,7 +63,7 @@ ax.text(cmj_t[3], y+height/2 + 0.05, 'Tiefster COM', ha='center', va='bottom', f
 ax.text(cmj_t[2] + (cmj_t[3]-cmj_t[2])/2, y, 'Auswertung\n(Landung)', ha='center', va='center', fontsize=9, color='white', fontweight='bold')
 
 # --- DJ ---
-y = 1
+y = 0
 ax.barh(y, dj_t[1]-dj_t[0], left=dj_t[0], height=height, color=flight_color, edgecolor='black', hatch='//')
 ax.barh(y, dj_t[2]-dj_t[1], left=dj_t[1], height=height, color=gray_color, edgecolor='black')
 ax.barh(y, dj_t[3]-dj_t[2], left=dj_t[2], height=height, color=flight_color, edgecolor='black', hatch='//')
@@ -74,18 +87,6 @@ ax.text(dj_t[4], y+height/2 + 0.05, 'Tiefster COM', ha='center', va='bottom', fo
 
 ax.text(dj_t[3] + (dj_t[4]-dj_t[3])/2, y, 'Auswertung\n(Landung 2)', ha='center', va='center', fontsize=9, color='white', fontweight='bold')
 
-# --- Squat ---
-y = 0
-ax.barh(y, sq_t[1]-sq_t[0], left=sq_t[0], height=height, color=highlight_color, edgecolor='black')
-
-# Squat Event Linien & Text
-ax.plot([sq_t[0], sq_t[0]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
-ax.text(sq_t[0], y+height/2 + 0.05, 'Start', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
-
-ax.plot([sq_t[1], sq_t[1]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
-ax.text(sq_t[1], y+height/2 + 0.05, 'Ende', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
-
-ax.text(0.5, y, 'Auswertung', ha='center', va='center', fontsize=10, color='white', fontweight='bold')
 
 # --- Formatierung ---
 ax.set_yticks(y_pos)

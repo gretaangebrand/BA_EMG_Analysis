@@ -51,7 +51,7 @@ DEFAULT_CHRONO_ORDER = ["PER", "OVU", "LUT"]
 
 # Übungsreihenfolge für Bestleistungstabelle
 BESTLEISTUNG_EXERCISE_ORDER = [
-    "CMJ bilateral", "CMJ einbeinig R", "DJ bilateral", "SQ bilateral", "SQ einbeinig R",
+    "SQ bilateral", "SQ einbeinig R", "CMJ bilateral", "CMJ einbeinig R", "DJ bilateral", 
 ]
 
 # LaTeX-Farben für Phasen (Pastell-Versionen für Tabellenhintergrund)
