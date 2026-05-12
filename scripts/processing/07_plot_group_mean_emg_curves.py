@@ -1163,6 +1163,161 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
         plt.close(fig)
         print(f"  -> {out_path.name}")
 
+# ============================================================
+# PLOT 5: Nur Balkendiagramme für Poster
+# ============================================================
+
+def plot_landing_bars_only(curves, events, trial_metadata, out_dir, stats_dict):
+    """
+    Erstellt separate SVGs, die NUR die Balkendiagramme (Mittlere Aktivierung & Peak)
+    für die Landungsphase enthalten. Wird nur für Sprungübungen (CMJ, DJ) generiert.
+    """
+    phase_order = ["PER", "OVU", "LUT"]
+
+    for exercise, phase_data in sorted(curves.items()):
+        n_mus = len(MUSCLE_NAMES)
+
+        # Landungsphasen bestimmen
+        landing_ranges = _get_landing_pct_ranges(events, exercise, phase_order)
+        has_bars = len(landing_ranges) > 0
+
+        # Wenn die Übung keine Landungsphase hat (z. B. Squat), überspringen wir sie hier
+        if not has_bars:
+            continue
+
+        # Layout: Nur 2 Spalten (Mean + Peak)
+        fig, axes_all = plt.subplots(
+            n_mus, 2, figsize=(8, 3 * n_mus), # Schmaler als vorher, da die Kurve fehlt
+        )
+
+        for row_idx, muscle in enumerate(MUSCLE_NAMES):
+            pct_s, pct_e, bar_label, bar_color = landing_ranges[0]
+            deutsches_label = bar_label.replace("Landing", "Landung")
+
+            # Mean-Aktivierung berechnen
+            mean_stats = _compute_phase_means_in_range(
+                phase_data, 
+                trial_metadata.get(exercise, {}),
+                phase_order, 
+                muscle, 
+                exercise,
+            )
+            # Peak-Aktivierung berechnen
+            peak_stats = _compute_phase_peaks_in_range(
+                phase_data,
+                trial_metadata.get(exercise, {}),
+                phase_order,
+                muscle,
+                exercise,
+            )
+
+            # ── Y-Achse für diese Muskel-Zeile berechnen ──
+            all_bar_maxima = []
+            for stats in [mean_stats, peak_stats]:
+                for phase in phase_order:
+                    m, s, n = stats[phase]
+                    if not np.isnan(m) and not np.isnan(s):
+                        all_bar_maxima.append(m + s)
+            
+            if all_bar_maxima:
+                bar_max = max(all_bar_maxima)
+                # Etwas mehr Puffer (15%) für die Signifikanz-Klammern
+                unified_yhi = bar_max * 1.15 
+            else:
+                unified_yhi = 100
+            
+            unified_ylo = 0
+
+            # ── Balkendiagramme zeichnen ──
+            for bar_col_idx, (stats, title_text) in enumerate([
+                (mean_stats, "Mittlere Aktivierung"),
+                (peak_stats, "Peak-Aktivierung"),
+            ]):
+                ax_bar = axes_all[row_idx, bar_col_idx]
+
+                phases_present = [p for p in phase_order if not np.isnan(stats[p][0])]
+                means = [stats[p][0] for p in phases_present]
+                sds = [stats[p][1] for p in phases_present]
+                colors = [PHASE_COLORS[p] for p in phases_present]
+
+                x_pos = np.arange(len(phases_present))
+                bars = ax_bar.bar(
+                    x_pos, means, yerr=sds, capsize=3,
+                    color=colors, alpha=0.85,
+                    edgecolor="white", linewidth=1.0,
+                    zorder=2,
+                )
+                for bar, p in zip(bars, phases_present):
+                    bar.set_hatch(PHASE_HATCHES.get(p, ""))
+
+                ax_bar.set_xticks(x_pos)
+                ax_bar.set_xticklabels(phases_present, **FONT["annotation"])
+                ax_bar.spines["top"].set_visible(False)
+                ax_bar.spines["right"].set_visible(False)
+                ax_bar.grid(axis="y", alpha=0.2)
+
+                # Y-Achse anwenden
+                ax_bar.set_ylim(unified_ylo, unified_yhi)
+                ax_bar.tick_params(axis="y", labelsize=9)
+
+                # Y-Achsen-Beschriftung nur links (bei der Mean-Spalte)
+                if bar_col_idx == 0:
+                    ax_bar.set_ylabel(f"{muscle}\nin % BL", **FONT["tick_label"])
+
+                # Titel nur in der obersten Zeile
+                if row_idx == 0:
+                    ax_bar.set_title(
+                        f"{title_text}\n{deutsches_label}",
+                        **FONT["subtitle"],
+                        color=bar_color,
+                    )
+
+                # ── Signifikanz-Brackets ──
+                kennwert = "mean_emg" if title_text == "Mittlere Aktivierung" else "peak_emg"
+                stat_key = (exercise, muscle, kennwert)
+                if stat_key in stats_dict and stats_dict[stat_key]["signifikant"]:
+                    sig_info = stats_dict[stat_key]
+                    
+                    local_bar_max = max([m + s for m, s in zip(means, sds)]) if means else 0
+                    y_range = ax_bar.get_ylim()[1] - ax_bar.get_ylim()[0]
+                    
+                    bracket_height = local_bar_max + 0.05 * y_range
+                    bracket_offset = 0.08 * y_range
+                    
+                    comparisons = []
+                    if "PER" in phases_present and "OVU" in phases_present:
+                        p = sig_info["posthoc_PER_OVU_p"]
+                        sym = get_sig_symbol(p)
+                        if sym:
+                            comparisons.append((phases_present.index("PER"), phases_present.index("OVU"), sym))
+                    
+                    if "PER" in phases_present and "LUT" in phases_present:
+                        p = sig_info["posthoc_PER_LUT_p"]
+                        sym = get_sig_symbol(p)
+                        if sym:
+                            comparisons.append((phases_present.index("PER"), phases_present.index("LUT"), sym))
+                    
+                    if "OVU" in phases_present and "LUT" in phases_present:
+                        p = sig_info["posthoc_OVU_LUT_p"]
+                        sym = get_sig_symbol(p)
+                        if sym:
+                            comparisons.append((phases_present.index("OVU"), phases_present.index("LUT"), sym))
+                    
+                    for level, (i1, i2, symbol) in enumerate(comparisons):
+                        y_bracket = bracket_height + level * bracket_offset
+                        x1, x2 = x_pos[i1], x_pos[i2]
+                        
+                        ax_bar.plot([x1, x2], [y_bracket, y_bracket], color="black", linewidth=1.0, zorder=10, clip_on=False)
+                        tick_len = 0.02 * y_range
+                        ax_bar.plot([x1, x1], [y_bracket - tick_len, y_bracket], color="black", linewidth=1.0, zorder=10, clip_on=False)
+                        ax_bar.plot([x2, x2], [y_bracket - tick_len, y_bracket], color="black", linewidth=1.0, zorder=10, clip_on=False)
+                        ax_bar.text((x1 + x2) / 2, y_bracket + 0.01 * y_range, symbol, ha="center", va="bottom", fontsize=12, fontweight="bold", zorder=11, clip_on=False)
+
+        plt.tight_layout()
+        out_path = out_dir / f"group_mean_{exercise.replace(' ', '_')}_landing_bars_only.svg"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  -> {out_path.name}")
 
 # ============================================================
 # HAUPTFUNKTION
@@ -1207,6 +1362,8 @@ def main():
     print("\nErstelle Plots ...")
     plot_all_muscles_by_phase(curves, events, OUTPUT_DIR)
     plot_phases_overlay_by_muscle(curves, events, trial_metadata, OUTPUT_DIR, stats_dict)
+    #Aufruf für die reinen Balken-Plots
+    plot_landing_bars_only(curves, events, trial_metadata, OUTPUT_DIR, stats_dict)
 
     print("\nErstelle Plots mit Einzeltrials ...")
     plot_all_muscles_by_phase_with_trials(curves, events, OUTPUT_DIR)
