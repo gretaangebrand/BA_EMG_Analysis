@@ -883,8 +883,8 @@ def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats
                 ax.set_ylim(unified_ylo, unified_yhi)
 
                 for bar_col_idx, (stats, title_text) in enumerate([
-                    (mean_stats, "Mean"),
-                    (peak_stats, "Peak"),
+                    (mean_stats, "Mittlere Aktivierung"),
+                    (peak_stats, "Maximale Aktivierung"),
                 ]):
                     ax_bar = axes_all[row_idx, 1 + bar_col_idx]
  
@@ -916,14 +916,17 @@ def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats
  
                     # Titel nur in erster Zeile
                     if row_idx == 0:
+                        # Übersetzt "Landing" zu "Landung" (funktioniert auch bei "Landing 2")
+                        deutsches_label = bar_label.replace("Landing", "Landung")
+
                         ax_bar.set_title(
-                            f"{title_text}\n{bar_label}",
+                            f"{title_text}\n{deutsches_label}",
                             **FONT["subtitle"],
                             color=bar_color,
                         )
 
                     # ── Signifikanz-Brackets ──────────────────────────────
-                    kennwert = "mean_emg" if title_text == "Mean" else "peak_emg"
+                    kennwert = "mean_emg" if title_text == "Mittlere Aktivierung" else "peak_emg"
                     stat_key = (exercise, muscle, kennwert)
                     if stat_key in stats_dict and stats_dict[stat_key]["signifikant"]:
                         sig_info = stats_dict[stat_key]
