@@ -249,7 +249,7 @@ def _create_heatmap(df_cv: pd.DataFrame, kennwert: str, out_path: Path):
     
 
     # Zwei Farben
-    cmap = ListedColormap(["#E0E0E0", "#009E73"])
+    cmap = ListedColormap(["#BABABA", "#009E73"])
     
     # Harter Cut exakt bei CV_THRESHOLD (15)
     # Alles von 0 bis 15 wird grün, alles von 15 bis 100 wird rot
@@ -352,7 +352,7 @@ def _create_stacked_barchart(df_group: pd.DataFrame, kennwert: str, out_path: Pa
 
     # Balken zeichnen
     ax.barh(y_pos, df_plot["Pct_Resp"], color="#009E73", edgecolor="white", label="Responder (> 15% CV)")
-    ax.barh(y_pos, df_plot["Pct_NonResp"], left=df_plot["Pct_Resp"], color="#E0E0E0", edgecolor="white", label="Non-Responder (<= 15% CV)")
+    ax.barh(y_pos, df_plot["Pct_NonResp"], left=df_plot["Pct_Resp"], color="#BABABA", edgecolor="white", label="Non-Responder (<= 15% CV)")
 
     # Achsen anpassen
     ax.set_yticks(y_pos)
