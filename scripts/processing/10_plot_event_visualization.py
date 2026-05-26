@@ -8,10 +8,10 @@ visualisieren. Strichmaennchen werden oberhalb des Plots platziert:
     im Countermovement, Flugphase)
 
 Darstellung:
-  - CMJ: vGRF (Gesamt, in N) mit 4 Events, 6 Strichmaennchen
-  - DJ:  vGRF (Gesamt, in N) mit 4 Events, 7 Strichmaennchen
-  - SQ (bilateral):          vGRF (Gesamt, in N) + Kniewinkel rechts
-  - SQ (unilateral rechts):  vGRF (rechts, in N)   + Kniewinkel rechts
+  - CMJ: vBRK (Gesamt, in N) mit 4 Events, 6 Strichmaennchen
+  - DJ:  vBRK (Gesamt, in N) mit 4 Events, 7 Strichmaennchen
+  - SQ (bilateral):          vBRK (Gesamt, in N) + Kniewinkel rechts
+  - SQ (unilateral rechts):  vBRK (rechts, in N)   + Kniewinkel rechts
 
 Hinweise:
   - GRF-Rohdaten liegen in BW normalisiert vor und werden mit
@@ -303,10 +303,10 @@ def plot_jump(df, exercise, out_path):
  
     fig, ax = plt.subplots(figsize=(9, 5.2))
     ax.plot(t_rel, v, color=COLOR_GRF, linewidth=1.2,
-            label="vGRF (Gesamt)")
+            label="vBRK (Gesamt)")
     ax.axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
                alpha=0.7, label="1 \u00D7 Körpergewicht")
-    ax.set_ylabel("vGRF in KG")
+    ax.set_ylabel("vBRK in KG")
     ax.set_xlabel("Zeit in s")
     ax.grid(alpha=0.3)
  
@@ -363,11 +363,11 @@ def plot_squat(df, bilateral, out_path, title):
  
     fig, axes = plt.subplots(2, 1, figsize=(9, 6.4), sharex=True)
  
-    vgrf_label = "vGRF (Gesamt)" if bilateral else "vGRF (rechts)"
+    vgrf_label = "vBRK (Gesamt)" if bilateral else "vBRK (rechts)"
     axes[0].plot(t_v, v, color=COLOR_GRF, linewidth=1.2, label=vgrf_label)
     axes[0].axhline(1.0, color="gray", linestyle=":", linewidth=0.9,
                     alpha=0.7, label="1 \u00D7 Körpergewicht")
-    axes[0].set_ylabel("vGRF in KG")
+    axes[0].set_ylabel("vBRK in KG")
     axes[0].legend(loc="upper right", fontsize=8)
     axes[0].grid(alpha=0.3)
  

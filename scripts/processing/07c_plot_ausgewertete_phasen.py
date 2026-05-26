@@ -58,7 +58,7 @@ ax.plot([cmj_t[2], cmj_t[2]], [y-height/2, y+height/2], color=c_landing, linesty
 ax.text(cmj_t[2], y+height/2 + 0.05, 'Landung', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
 
 ax.plot([cmj_t[3], cmj_t[3]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
-ax.text(cmj_t[3], y+height/2 + 0.05, 'Tiefster COM', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+ax.text(cmj_t[3], y+height/2 + 0.05, 'Tiefster MSP', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
 
 ax.text(cmj_t[2] + (cmj_t[3]-cmj_t[2])/2, y, 'Auswertung\n(Landung)', ha='center', va='center', fontsize=9, color='white', fontweight='bold')
 
@@ -83,7 +83,7 @@ ax.plot([dj_t[3], dj_t[3]], [y-height/2, y+height/2], color=c_landing, linestyle
 ax.text(dj_t[3], y+height/2 + 0.05, 'Landung 2', ha='center', va='bottom', fontsize=9, color=c_landing, fontweight='bold')
 
 ax.plot([dj_t[4], dj_t[4]], [y-height/2, y+height/2], color=c_start_end, linestyle=':', lw=2)
-ax.text(dj_t[4], y+height/2 + 0.05, 'Tiefster COM', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
+ax.text(dj_t[4], y+height/2 + 0.05, 'Tiefster MSP', ha='center', va='bottom', fontsize=9, color=c_start_end, fontweight='bold')
 
 ax.text(dj_t[3] + (dj_t[4]-dj_t[3])/2, y, 'Auswertung\n(Landung 2)', ha='center', va='center', fontsize=9, color='white', fontweight='bold')
 

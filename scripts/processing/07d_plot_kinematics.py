@@ -54,19 +54,19 @@ PLOT_CONFIG = {
     },
     ("CMJ", "BILATERAL"): {
         "variable": "vGRF_Total", 
-        "y_label": "vGRF (gesamt) in KG",
+        "y_label": "vBRK (gesamt) in KG",
         "cut_phase": "landing",
         "start_event": "event_landing_s"
     },
     ("CMJ", "RIGHT"): {
         "variable": "Right GRF_Z", 
-        "y_label": "Vertikale GRF (rechts) in KG",
+        "y_label": "vBRK (rechts) in KG",
         "cut_phase": "landing",
         "start_event": "event_landing_s"
     },
     ("DJ", "BILATERAL"): {
         "variable": "vGRF_Total",
-        "y_label": "vGRF (gesamt) in KG",
+        "y_label": "vBRK (gesamt) in KG",
         "cut_phase": "landing",
         "start_event": "event_landing2_s"
     }

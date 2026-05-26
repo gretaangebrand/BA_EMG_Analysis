@@ -808,7 +808,7 @@ def plot_phases_overlay_by_muscle(curves, events, trial_metadata, out_dir, stats
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
  
-            ax.set_ylabel(f"{muscle}\nin % BL", **FONT["tick_label"])
+            ax.set_ylabel(f"{muscle}\nin % Ref.", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
@@ -1135,7 +1135,7 @@ def plot_phases_overlay_by_muscle_with_trials(curves, events, out_dir):
             if all_evt_lists:
                 draw_event_lines(ax, all_evt_lists, add_label=(row_idx == 0))
 
-            ax.set_ylabel(f"{muscle}\nin % BL", **FONT["tick_label"])
+            ax.set_ylabel(f"{muscle}\nin % Ref.", **FONT["tick_label"])
             ax.set_xlim(-1, 101)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
@@ -1262,7 +1262,7 @@ def plot_landing_bars_only(curves, events, trial_metadata, out_dir, stats_dict):
 
                 # Y-Achsen-Beschriftung nur links (bei der Mean-Spalte)
                 if bar_col_idx == 0:
-                    ax_bar.set_ylabel(f"{muscle}\nin % BL", **FONT["tick_label"])
+                    ax_bar.set_ylabel(f"{muscle}\nin % Ref.", **FONT["tick_label"])
 
                 # Titel nur in der obersten Zeile
                 if row_idx == 0:
